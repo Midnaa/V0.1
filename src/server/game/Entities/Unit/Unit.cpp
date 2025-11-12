@@ -72,7 +72,7 @@
 #include "World.h"
 #include "WorldPacket.h"
 #include <cmath>
-#include "C:\V0.1Build\azerothcore-wotlk\src\server\scripts\Custom\SpellRegulator\SpellRegulator.h"
+#include "..\src\server\scripts\Custom\SpellRegulator\SpellRegulator.h"
 
 float baseMoveSpeed[MAX_MOVE_TYPE] =
 {
