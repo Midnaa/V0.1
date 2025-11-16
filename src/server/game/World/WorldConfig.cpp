@@ -669,4 +669,7 @@ void WorldConfig::BuildConfigCache()
     SetConfigValue<uint32>(CONFIG_SCOURGEINVASION_COUNTER_THIRD, "ScourgeInvasion.CounterThird", 150);
 
     SetConfigValue<std::string>(CONFIG_NEW_CHAR_STRING, "PlayerStart.String", "");
+    //Mana
+    SetConfigValue<float>(CONFIG_RATE_PLAYER_MANA_MULTIPLIER, "Rate.Mana_Scaling", 1.0f);
+    
 }
