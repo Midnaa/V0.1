@@ -27,6 +27,7 @@
 #include "SpellAuraDefines.h"
 #include "SpellAuraEffects.h"
 #include "SpellMgr.h"
+#include "WorldConfig.h"
 
 uint32 GetTargetFlagMask(SpellTargetObjectTypes objType)
 {
@@ -2489,6 +2490,11 @@ int32 SpellInfo::CalcPowerCost(Unit const* caster, SpellSchoolMask schoolMask, S
             if (spellScaler && casterScaler)
                 powerCost *= casterScaler->ratio / spellScaler->ratio;
         }
+    }
+
+        if (PowerType == POWER_MANA)
+    {
+        powerCost *= sWorld->getRate(CONFIG_RATE_PLAYER_MANA_MULTIPLIER);
     }
 
     // PCT mod from user auras by school
