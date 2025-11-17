@@ -6411,7 +6411,6 @@ void Unit::SendSpellNonMeleeReflectLog(SpellNonMeleeDamage* log, Unit* attacker)
 
 void Unit::SendSpellNonMeleeDamageLog(SpellNonMeleeDamage* log)
 {
-    sSpellRegulator->Regulate(log->damage, log->spellInfo->Id, GetEntry());
     WorldPacket data(SMSG_SPELLNONMELEEDAMAGELOG, (16 + 4 + 4 + 4 + 1 + 4 + 4 + 1 + 1 + 4 + 4 + 1)); // we guess size
     //IF we are in cheat mode we swap absorb with damage and set damage to 0, this way we can still debug damage but our hp bar will not drop
     uint32 damage = log->damage;
@@ -6492,7 +6491,6 @@ void Unit::ProcDamageAndSpell(Unit* actor, Unit* victim, uint32 procAttacker, ui
 void Unit::SendPeriodicAuraLog(SpellPeriodicAuraLogInfo* pInfo)
 {
     AuraEffect const* aura = pInfo->auraEff;
-    sSpellRegulator->Regulate(pInfo->damage, aura->GetId(), GetEntry());
     WorldPacket data(SMSG_PERIODICAURALOG, 30);
     data << GetPackGUID();
     data << aura->GetCasterGUID().WriteAsPacked();
