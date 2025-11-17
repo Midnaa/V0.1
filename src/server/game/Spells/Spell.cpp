@@ -53,7 +53,6 @@
 #include "World.h"
 #include "WorldPacket.h"
 #include <cmath>
-#include "../src/server/scripts/Custom/SpellRegulator/SpellRegulator.h"
 
 /// @todo: this import is not necessary for compilation and marked as unused by the IDE
 //  however, for some reasons removing it would cause a damn linking issue
@@ -2744,8 +2743,7 @@ void Spell::DoAllEffectOnTarget(TargetInfo* target)
         }
         else
             caster->CalculateSpellDamageTaken(&damageInfo, m_damage, m_spellInfo, m_attackType,  target->crit);
-           // --- SPELLREGULATOR FINAL DAMAGE MOD ---
-           sSpellRegulator->Regulate(damageInfo.damage, m_spellInfo->Id, caster->GetEntry());
+        
         // xinef: override miss info after absorb / block calculations
         if (missInfo == SPELL_MISS_NONE && damageInfo.damage == 0)
         {
