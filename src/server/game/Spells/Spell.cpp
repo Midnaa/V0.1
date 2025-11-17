@@ -2744,7 +2744,8 @@ void Spell::DoAllEffectOnTarget(TargetInfo* target)
         }
         else
             caster->CalculateSpellDamageTaken(&damageInfo, m_damage, m_spellInfo, m_attackType,  target->crit);
-
+           // --- SPELLREGULATOR FINAL DAMAGE MOD ---
+           sSpellRegulator->Regulate(damageInfo.damage, m_spellInfo->Id, caster->GetEntry());
         // xinef: override miss info after absorb / block calculations
         if (missInfo == SPELL_MISS_NONE && damageInfo.damage == 0)
         {
@@ -2759,8 +2760,6 @@ void Spell::DoAllEffectOnTarget(TargetInfo* target)
         {
             damageInfo.HitInfo |= SPELL_HIT_TYPE_CRIT;
         }
-        if (m_caster)
-            sSpellRegulator->Regulate(damageInfo.damage, m_spellInfo->Id, m_caster->GetEntry());
         Unit::DealDamageMods(damageInfo.target, damageInfo.damage, &damageInfo.absorb);
 
         // xinef: health leech handling
