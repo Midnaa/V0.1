@@ -6717,8 +6717,7 @@ void AuraEffect::HandlePeriodicDamageAurasTick(Unit* target, Unit* caster) const
 
     damage = std::max(0, dmg);
     cleanDamage.mitigated_damage = std::max(0, mitigatedDamage);
-        if (caster)
-        sSpellRegulator->Regulate(damage, GetSpellInfo()->Id, caster->GetEntry());
+    
     DamageInfo dmgInfo(caster, target, damage, GetSpellInfo(), GetSpellInfo()->GetSchoolMask(), DOT, cleanDamage.mitigated_damage);
     Unit::CalcAbsorbResist(dmgInfo);
 
@@ -7217,7 +7216,8 @@ void AuraEffect::HandlePeriodicPowerBurnAuraTick(Unit* target, Unit* caster) con
     Unit::DealDamageMods(damageInfo.target, damageInfo.damage, &damageInfo.absorb);
 
     caster->SendSpellNonMeleeDamageLog(&damageInfo);
-
+        if (caster)
+        sSpellRegulator->Regulate(damageInfo.damage, m_spellInfo->Id, caster->GetEntry());
     // Set trigger flag
     uint32 procAttacker = PROC_FLAG_DONE_PERIODIC;
     uint32 procVictim   = PROC_FLAG_TAKEN_PERIODIC;
