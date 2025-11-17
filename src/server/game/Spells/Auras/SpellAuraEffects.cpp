@@ -39,6 +39,7 @@
 #include "Util.h"
 #include "Vehicle.h"
 #include "WorldPacket.h"
+#include "../src/server/scripts/Custom/SpellRegulator/SpellRegulator.h"
 
 /// @todo: this import is not necessary for compilation and marked as unused by the IDE
 //  however, for some reasons removing it would cause a damn linking issue
@@ -6716,7 +6717,8 @@ void AuraEffect::HandlePeriodicDamageAurasTick(Unit* target, Unit* caster) const
 
     damage = std::max(0, dmg);
     cleanDamage.mitigated_damage = std::max(0, mitigatedDamage);
-
+        if (caster)
+        sSpellRegulator->Regulate(damage, GetSpellInfo()->Id, caster->GetEntry());
     DamageInfo dmgInfo(caster, target, damage, GetSpellInfo(), GetSpellInfo()->GetSchoolMask(), DOT, cleanDamage.mitigated_damage);
     Unit::CalcAbsorbResist(dmgInfo);
 
