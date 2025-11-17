@@ -840,8 +840,6 @@ uint32 Unit::DealDamage(Unit* attacker, Unit* victim, uint32 damage, CleanDamage
 
     // Hook for OnDamage Event
     sScriptMgr->OnDamage(attacker, victim, damage);
-    if ((damagetype == SPELL_DIRECT_DAMAGE || damagetype == DOT) && spellProto)
-        sSpellRegulator->Regulate(damage, spellProto->Id, attacker->GetEntry());
 
     if (victim->IsPlayer() && attacker != victim)
     {
@@ -1126,7 +1124,9 @@ uint32 Unit::DealDamage(Unit* attacker, Unit* victim, uint32 damage, CleanDamage
         }
 
         if (damagetype != NODAMAGE && damage && (!spellProto || !(spellProto->HasAttribute(SPELL_ATTR3_TREAT_AS_PERIODIC) || spellProto->HasAttribute(SPELL_ATTR7_DONT_CAUSE_SPELL_PUSHBACK))))
-        {
+         {    
+            if ((damagetype == SPELL_DIRECT_DAMAGE || damagetype == DOT) && spellProto)
+            sSpellRegulator->Regulate(damage, spellProto->Id, attacker->GetEntry());
             if (victim != attacker && victim->IsPlayer()) // does not support creature push_back
             {
                 if (damagetype != DOT && !(damageSpell && damageSpell->m_targets.HasDstChannel()))
