@@ -72,7 +72,7 @@
 #include "World.h"
 #include "WorldPacket.h"
 #include <cmath>
-#include "../src/server/scripts/Custom/SpellRegulator/SpellRegulator.h"
+#include "C:/V0.1Build/azerothcore-wotlk/src/server/scripts/Custom/SpellRegulator/SpellRegulator.h"
 
 float baseMoveSpeed[MAX_MOVE_TYPE] =
 {
@@ -825,19 +825,11 @@ void Unit::DealDamageMods(Unit const* victim, uint32& damage, uint32* absorb)
 uint32 Unit::DealDamage(Unit* attacker, Unit* victim, uint32 damage, CleanDamage const* cleanDamage, DamageEffectType damagetype, SpellSchoolMask damageSchoolMask, SpellInfo const* spellProto, bool durabilityLoss, bool /*allowGM*/, Spell const* damageSpell /*= nullptr*/)
 {
     damage = sScriptMgr->DealDamage(attacker, victim, damage, damagetype);
-    uint32 regulatedDamage = damage; // copy for regulation
 
-    if (spellProto && sSpellRegulator)
-        sSpellRegulator->Regulate(regulatedDamage, spellProto->Id, attacker->GetEntry());
+    if ((damagetype == SPELL_DIRECT_DAMAGE || damagetype == DOT) && spellProto)
+        sSpellRegulator->Regulate(damage, spellProto->Id, attacker->GetEntry());
 
-    // HP loss
-    victim->ModifyHealth(-(int32)regulatedDamage);
 
-    // SCT / combat log
-    if (attacker && victim != attacker && damage)
-    {
-        attacker->SendSpellNonMeleeDamageLog(victim, spellProto, regulatedDamage, damageSchoolMask, 0, 0, true, 0, false);
-    }
     // Xinef: initialize damage done for rage calculations
     // Xinef: its rare to modify damage in hooks, however training dummy's sets damage to 0
     uint32 rage_damage = damage + ((cleanDamage != nullptr) ? cleanDamage->absorbed_damage : 0);
@@ -852,7 +844,6 @@ uint32 Unit::DealDamage(Unit* attacker, Unit* victim, uint32 damage, CleanDamage
     }
 
     // Hook for OnDamage Event
-    sScriptMgr->OnDamage(attacker, victim, damage);
 
     if (victim->IsPlayer() && attacker != victim)
     {
@@ -1137,8 +1128,7 @@ uint32 Unit::DealDamage(Unit* attacker, Unit* victim, uint32 damage, CleanDamage
         }
 
         if (damagetype != NODAMAGE && damage && (!spellProto || !(spellProto->HasAttribute(SPELL_ATTR3_TREAT_AS_PERIODIC) || spellProto->HasAttribute(SPELL_ATTR7_DONT_CAUSE_SPELL_PUSHBACK))))
-         {    
-            
+        {
             if (victim != attacker && victim->IsPlayer()) // does not support creature push_back
             {
                 if (damagetype != DOT && !(damageSpell && damageSpell->m_targets.HasDstChannel()))
@@ -6511,34 +6501,30 @@ void Unit::SendPeriodicAuraLog(SpellPeriodicAuraLogInfo* pInfo)
     data << uint32(aura->GetAuraType());                    // auraId
     switch (aura->GetAuraType())
     {
-         case SPELL_AURA_PERIODIC_DAMAGE:
-         case SPELL_AURA_PERIODIC_DAMAGE_PERCENT:
+    case SPELL_AURA_PERIODIC_DAMAGE:
+    case SPELL_AURA_PERIODIC_DAMAGE_PERCENT:
     {
+        //IF we are in cheat mode we swap absorb with damage and set damage to 0, this way we can still debug damage but our hp bar will not drop
         uint32 damage = pInfo->damage;
-        uint32 regulatedDamage = damage;
-
-        if (SpellInfo const* spellProto = aura->GetSpellInfo())
-        {
-            if (Unit* caster = aura->GetCaster())
-            {
-                if (sSpellRegulator)
-                    sSpellRegulator->Regulate(regulatedDamage, spellProto->Id, caster->GetEntry());
-            }
-        }
-
         uint32 absorb = pInfo->absorb;
         if (IsPlayer() && ToPlayer()->GetCommandStatus(CHEAT_GOD))
         {
-            absorb = regulatedDamage;
-            regulatedDamage = 0;
+            absorb = damage;
+            damage = 0;
         }
 
-        data << uint32(regulatedDamage);
-        data << uint32(pInfo->overDamage);
+
+        if (IsPlayer() && ToPlayer()->GetCommandStatus(CHEAT_GOD))
+        {
+            absorb = damage;
+            damage = 0;
+        }
+        data << uint32(damage);                         // damage
+        data << uint32(pInfo->overDamage);              // overkill?
         data << uint32(aura->GetSpellInfo()->GetSchoolMask());
-        data << uint32(0); // absorb ignored
-        data << uint32(0); // resist ignored
-        data << uint8(0);  // crit ignored
+        data << uint32(absorb);                         // absorb
+        data << uint32(pInfo->resist);                  // resist
+        data << uint8(pInfo->critical);                 // new 3.1.2 critical tick
     }
     break;
         case SPELL_AURA_PERIODIC_HEAL:
