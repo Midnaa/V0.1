@@ -53,6 +53,7 @@
 #include "World.h"
 #include "WorldPacket.h"
 #include <cmath>
+#include "../src/server/scripts/Custom/SpellRegulator/SpellRegulator.h"
 
 /// @todo: this import is not necessary for compilation and marked as unused by the IDE
 //  however, for some reasons removing it would cause a damn linking issue
@@ -2758,7 +2759,8 @@ void Spell::DoAllEffectOnTarget(TargetInfo* target)
         {
             damageInfo.HitInfo |= SPELL_HIT_TYPE_CRIT;
         }
-
+        if (m_caster)
+            sSpellRegulator->Regulate(damageInfo.damage, m_spellInfo->Id, m_caster->GetEntry());
         Unit::DealDamageMods(damageInfo.target, damageInfo.damage, &damageInfo.absorb);
 
         // xinef: health leech handling
