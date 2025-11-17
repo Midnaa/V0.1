@@ -39,7 +39,6 @@
 #include "Util.h"
 #include "Vehicle.h"
 #include "WorldPacket.h"
-#include "../src/server/scripts/Custom/SpellRegulator/SpellRegulator.h"
 
 /// @todo: this import is not necessary for compilation and marked as unused by the IDE
 //  however, for some reasons removing it would cause a damn linking issue
@@ -7216,8 +7215,7 @@ void AuraEffect::HandlePeriodicPowerBurnAuraTick(Unit* target, Unit* caster) con
     Unit::DealDamageMods(damageInfo.target, damageInfo.damage, &damageInfo.absorb);
 
     caster->SendSpellNonMeleeDamageLog(&damageInfo);
-        if (caster)
-        sSpellRegulator->Regulate(damageInfo.damage, m_spellInfo->Id, caster->GetEntry());
+    
     // Set trigger flag
     uint32 procAttacker = PROC_FLAG_DONE_PERIODIC;
     uint32 procVictim   = PROC_FLAG_TAKEN_PERIODIC;
