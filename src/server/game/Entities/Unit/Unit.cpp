@@ -72,7 +72,7 @@
 #include "World.h"
 #include "WorldPacket.h"
 #include <cmath>
-#include "C:/V0.1Build/azerothcore-wotlk/src/server/scripts/Custom/SpellRegulator/SpellRegulator.h"
+#include "../src/server/scripts/Custom/SpellRegulator/SpellRegulator.h"
 
 float baseMoveSpeed[MAX_MOVE_TYPE] =
 {
@@ -6507,13 +6507,6 @@ void Unit::SendPeriodicAuraLog(SpellPeriodicAuraLogInfo* pInfo)
         //IF we are in cheat mode we swap absorb with damage and set damage to 0, this way we can still debug damage but our hp bar will not drop
         uint32 damage = pInfo->damage;
         uint32 absorb = pInfo->absorb;
-        if (IsPlayer() && ToPlayer()->GetCommandStatus(CHEAT_GOD))
-        {
-            absorb = damage;
-            damage = 0;
-        }
-
-
         if (IsPlayer() && ToPlayer()->GetCommandStatus(CHEAT_GOD))
         {
             absorb = damage;
