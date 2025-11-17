@@ -836,7 +836,7 @@ uint32 Unit::DealDamage(Unit* attacker, Unit* victim, uint32 damage, CleanDamage
     // SCT / combat log
     if (attacker && victim != attacker && damage)
     {
-        attacker->SendSpellNonMeleeDamageLog(victim, spellProto, regulatedDamage, damageSchoolMask, absorb, resist, true, 0, crit);
+        attacker->SendSpellNonMeleeDamageLog(victim, spellProto, regulatedDamage, damageSchoolMask, 0, 0, true, 0, false);
     }
     // Xinef: initialize damage done for rage calculations
     // Xinef: its rare to modify damage in hooks, however training dummy's sets damage to 0
