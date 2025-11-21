@@ -825,11 +825,6 @@ void Unit::DealDamageMods(Unit const* victim, uint32& damage, uint32* absorb)
 uint32 Unit::DealDamage(Unit* attacker, Unit* victim, uint32 damage, CleanDamage const* cleanDamage, DamageEffectType damagetype, SpellSchoolMask damageSchoolMask, SpellInfo const* spellProto, bool durabilityLoss, bool /*allowGM*/, Spell const* damageSpell /*= nullptr*/)
 {
     damage = sScriptMgr->DealDamage(attacker, victim, damage, damagetype);
-
-    if ((damagetype == SPELL_DIRECT_DAMAGE || damagetype == DOT) && spellProto)
-        sSpellRegulator->Regulate(damage, spellProto->Id, attacker->GetEntry());
-
-
     // Xinef: initialize damage done for rage calculations
     // Xinef: its rare to modify damage in hooks, however training dummy's sets damage to 0
     uint32 rage_damage = damage + ((cleanDamage != nullptr) ? cleanDamage->absorbed_damage : 0);
@@ -844,6 +839,10 @@ uint32 Unit::DealDamage(Unit* attacker, Unit* victim, uint32 damage, CleanDamage
     }
 
     // Hook for OnDamage Event
+    sScriptMgr->OnDamage(attacker, victim, damage);
+
+    if ((damagetype == SPELL_DIRECT_DAMAGE || damagetype == DOT) && spellProto)
+        sSpellRegulator->Regulate(damage, spellProto->Id, attacker->GetEntry());
 
     if (victim->IsPlayer() && attacker != victim)
     {
@@ -6462,7 +6461,7 @@ void Unit::SendSpellNonMeleeDamageLog(SpellNonMeleeDamage* log)
 void Unit::SendSpellNonMeleeDamageLog(Unit* target, SpellInfo const* spellInfo, uint32 Damage, SpellSchoolMask damageSchoolMask, uint32 AbsorbedDamage, uint32 Resist, bool PhysicalDamage, uint32 Blocked, bool CriticalHit /*= false*/, bool Split /*= false*/)
 {
     SpellNonMeleeDamage log(this, target, spellInfo, damageSchoolMask);
-
+    log.damage = Damage;
     log.absorb = AbsorbedDamage;
     log.resist = Resist;
     log.physicalLog = PhysicalDamage;
@@ -6501,25 +6500,26 @@ void Unit::SendPeriodicAuraLog(SpellPeriodicAuraLogInfo* pInfo)
     data << uint32(aura->GetAuraType());                    // auraId
     switch (aura->GetAuraType())
     {
-    case SPELL_AURA_PERIODIC_DAMAGE:
-    case SPELL_AURA_PERIODIC_DAMAGE_PERCENT:
-    {
-        //IF we are in cheat mode we swap absorb with damage and set damage to 0, this way we can still debug damage but our hp bar will not drop
-        uint32 damage = pInfo->damage;
-        uint32 absorb = pInfo->absorb;
-        if (IsPlayer() && ToPlayer()->GetCommandStatus(CHEAT_GOD))
-        {
-            absorb = damage;
-            damage = 0;
-        }
-        data << uint32(damage);                         // damage
-        data << uint32(pInfo->overDamage);              // overkill?
-        data << uint32(aura->GetSpellInfo()->GetSchoolMask());
-        data << uint32(absorb);                         // absorb
-        data << uint32(pInfo->resist);                  // resist
-        data << uint8(pInfo->critical);                 // new 3.1.2 critical tick
-    }
-    break;
+        case SPELL_AURA_PERIODIC_DAMAGE:
+        case SPELL_AURA_PERIODIC_DAMAGE_PERCENT:
+            {
+                //IF we are in cheat mode we swap absorb with damage and set damage to 0, this way we can still debug damage but our hp bar will not drop
+                uint32 damage = pInfo->damage;
+                uint32 absorb = pInfo->absorb;
+                if (IsPlayer() && ToPlayer()->GetCommandStatus(CHEAT_GOD))
+                {
+                    absorb = damage;
+                    damage = 0;
+                }
+
+                data << uint32(damage);                         // damage
+                data << uint32(pInfo->overDamage);              // overkill?
+                data << uint32(aura->GetSpellInfo()->GetSchoolMask());
+                data << uint32(absorb);                         // absorb
+                data << uint32(pInfo->resist);                  // resist
+                data << uint8(pInfo->critical);                 // new 3.1.2 critical tick
+            }
+            break;
         case SPELL_AURA_PERIODIC_HEAL:
         case SPELL_AURA_OBS_MOD_HEALTH:
             data << uint32(pInfo->damage);                  // damage
