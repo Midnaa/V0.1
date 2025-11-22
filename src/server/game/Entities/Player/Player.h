@@ -1059,6 +1059,7 @@ struct PendingSpellCastRequest
 
 class Player : public Unit, public GridObject<Player>
 {
+    void CleanUpInstanceAuras();
     friend class WorldSession;
     friend class CinematicMgr;
     friend void Item::AddToUpdateQueueOf(Player* player);
