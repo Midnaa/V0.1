@@ -1360,17 +1360,42 @@ void Player::SendTeleportAckPacket()
     GetSession()->IncrementOrderCounter();
 }
 
-// cleanup auras before leaving map
+// cleanup crashing (DOT/HOT) auras before leaving map
 void Player::CleanUpInstanceAuras()
 {
     for (auto itr = m_ownedAuras.begin(); itr != m_ownedAuras.end(); )
     {
         Aura* aura = itr->second;
         Unit* caster = aura->GetCaster();
+        bool remove = false;
+
         if (caster && caster->GetMapId() != GetMapId())
         {
-            itr = m_ownedAuras.erase(itr); // safely remove from map
-            aura->Remove();                // remove aura from target
+            for (uint8 i = 0; i < MAX_SPELL_EFFECTS; ++i)
+            {
+                AuraEffect* eff = aura->GetEffect(i);
+                if (!eff)
+                    continue;
+
+                switch (eff->GetAuraType())
+                {
+                case SPELL_AURA_PERIODIC_DAMAGE:
+                case SPELL_AURA_PERIODIC_HEAL:
+                case SPELL_AURA_PERIODIC_LEECH:
+                    remove = true;
+                    break;
+                default:
+                    break;
+                }
+                if (remove)
+                    break;
+            }
+        }
+
+        if (remove)
+        {
+            itr = m_ownedAuras.erase(itr);
+            aura->Remove();
         }
         else
         {
