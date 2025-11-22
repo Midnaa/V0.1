@@ -1360,6 +1360,25 @@ void Player::SendTeleportAckPacket()
     GetSession()->IncrementOrderCounter();
 }
 
+// cleanup auras before leaving map
+void Player::CleanUpInstanceAuras()
+{
+    for (auto itr = m_ownedAuras.begin(); itr != m_ownedAuras.end(); )
+    {
+        Aura* aura = itr->second;
+        Unit* caster = aura->GetCaster();
+        if (caster && caster->GetMapId() != GetMapId())
+        {
+            itr = m_ownedAuras.erase(itr); // safely remove from map
+            aura->Remove();                // remove aura from target
+        }
+        else
+        {
+            ++itr;
+        }
+    }
+}
+
 bool Player::TeleportTo(uint32 mapid, float x, float y, float z, float orientation, uint32 options /*= 0*/, Unit* target /*= nullptr*/, bool newInstance /*= false*/)
 {
     if (!MapMgr::IsValidMapCoord(mapid, x, y, z, orientation))
