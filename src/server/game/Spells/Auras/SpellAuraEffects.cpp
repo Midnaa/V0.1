@@ -1113,6 +1113,12 @@ void AuraEffect::PeriodicTick(AuraApplication* aurApp, Unit* caster) const
         return;
 
     Unit* target = aurApp->GetTarget();
+    if (!caster || !target || caster->GetMapId() != target->GetMapId())
+{
+    // The aura cannot safely tick, remove it
+    aurApp->GetBase()->Remove();
+    return;
+}
 
     // Update serverside orientation of tracking channeled auras on periodic update ticks
     // exclude players because can turn during channeling and shouldn't desync orientation client/server
@@ -6716,7 +6722,7 @@ void AuraEffect::HandlePeriodicDamageAurasTick(Unit* target, Unit* caster) const
 
     damage = std::max(0, dmg);
     cleanDamage.mitigated_damage = std::max(0, mitigatedDamage);
-    
+
     DamageInfo dmgInfo(caster, target, damage, GetSpellInfo(), GetSpellInfo()->GetSchoolMask(), DOT, cleanDamage.mitigated_damage);
     Unit::CalcAbsorbResist(dmgInfo);
 
@@ -7215,7 +7221,7 @@ void AuraEffect::HandlePeriodicPowerBurnAuraTick(Unit* target, Unit* caster) con
     Unit::DealDamageMods(damageInfo.target, damageInfo.damage, &damageInfo.absorb);
 
     caster->SendSpellNonMeleeDamageLog(&damageInfo);
-    
+
     // Set trigger flag
     uint32 procAttacker = PROC_FLAG_DONE_PERIODIC;
     uint32 procVictim   = PROC_FLAG_TAKEN_PERIODIC;
