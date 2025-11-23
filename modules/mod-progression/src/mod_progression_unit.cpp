@@ -13,12 +13,8 @@ void Progression::ModifyPeriodicDamageAurasTick(Unit* /*target*/, Unit* attacker
     if (!isPet && !attacker->IsPlayer())
     {
         return;
-    }
-
-    if (sProgressionMgr->GetPatchId() < PATCH_ECHOES_OF_DOOM)
-    {
-        damage *= sProgressionMgr->GetDamageModifier();
-    }
+    }    
+        damage *= sProgressionMgr->GetDamageModifier();  
 }
 
 void Progression::ModifyMeleeDamage(Unit* /*target*/, Unit* attacker, uint32& damage)
@@ -34,10 +30,7 @@ void Progression::ModifyMeleeDamage(Unit* /*target*/, Unit* attacker, uint32& da
         return;
     }
 
-    if (sProgressionMgr->GetPatchId() < PATCH_ECHOES_OF_DOOM)
-    {
         damage *= sProgressionMgr->GetDamageModifier();
-    }
 }
 
 void Progression::ModifySpellDamageTaken(Unit* /*target*/, Unit* attacker, int32& damage, SpellInfo const* /*spellInfo*/)
@@ -52,11 +45,7 @@ void Progression::ModifySpellDamageTaken(Unit* /*target*/, Unit* attacker, int32
     {
         return;
     }
-
-    if (sProgressionMgr->GetPatchId() < PATCH_ECHOES_OF_DOOM)
-    {
         damage *= sProgressionMgr->GetDamageModifier();
-    }
 }
 
 void Progression::ModifyHealReceived(Unit* /*target*/, Unit* healer, uint32& heal, SpellInfo const* spellInfo)
@@ -81,9 +70,5 @@ void Progression::ModifyHealReceived(Unit* /*target*/, Unit* healer, uint32& hea
     {
         return;
     }
-
-    if (sProgressionMgr->GetPatchId() < PATCH_ECHOES_OF_DOOM)
-    {
         heal *= sProgressionMgr->GetHealingModifier();
-    }
 }
