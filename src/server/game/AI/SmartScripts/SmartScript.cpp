@@ -4081,16 +4081,28 @@ void SmartScript::ProcessEvent(SmartScriptHolder& e, Unit* unit, uint32 var0, ui
                 ProcessTimedAction(e, e.event.minMaxRepeat.repeatMin, e.event.minMaxRepeat.repeatMax, me->GetVictim());
                 break;
             }
-        case SMART_EVENT_MANA_PCT:
+           case SMART_EVENT_MANA_PCT: 
             {
-                if (!me || !me->IsEngaged() || !me->GetMaxPower(POWER_MANA))
-                    return;
-                uint32 perc = uint32(me->GetPowerPct(POWER_MANA));
-                if (perc > e.event.minMaxRepeat.max || perc < e.event.minMaxRepeat.min)
-                    return;
-                ProcessTimedAction(e, e.event.minMaxRepeat.repeatMin, e.event.minMaxRepeat.repeatMax);
-                break;
+            if (!me || !me->IsEngaged())
+                return;
+            static constexpr Powers powerTypes[] = { POWER_MANA, POWER_ENERGY }; // added Energy to be considered
+            bool matched = false;
+            for (Powers p : powerTypes)
+            {
+                if (me->GetMaxPower(p) == 0)
+                    continue;
+                uint32 perc = uint32(me->GetPowerPct(p));
+                if (perc <= e.event.minMaxRepeat.max && perc >= e.event.minMaxRepeat.min)
+                {
+                    matched = true;
+                    break;
+                }
             }
+            if (!matched)
+                return;
+            ProcessTimedAction(e, e.event.minMaxRepeat.repeatMin, e.event.minMaxRepeat.repeatMax);
+            break;
+        }
         case SMART_EVENT_TARGET_MANA_PCT:
             {
                 if (!me || !me->IsEngaged() || !me->GetVictim() || !me->GetVictim()->GetMaxPower(POWER_MANA))
