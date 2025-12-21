@@ -237,7 +237,10 @@ target_link_libraries(scripts
 target_include_directories(scripts
   PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}
-    ${PUBLIC_INCLUDES})
+    ${PUBLIC_INCLUDES}
+    ${CMAKE_CURRENT_SOURCE_DIR}/Custom            # <-- added
+    ${CMAKE_CURRENT_SOURCE_DIR}/Custom/SpellRegulator  # <-- optional, but cleaner
+)
 
 set_target_properties(scripts
   PROPERTIES

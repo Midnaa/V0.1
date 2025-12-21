@@ -4081,6 +4081,7 @@ void SmartScript::ProcessEvent(SmartScriptHolder& e, Unit* unit, uint32 var0, ui
                 ProcessTimedAction(e, e.event.minMaxRepeat.repeatMin, e.event.minMaxRepeat.repeatMax, me->GetVictim());
                 break;
             }
+<<<<<<< HEAD
            case SMART_EVENT_MANA_PCT: 
             {
             if (!me || !me->IsEngaged())
@@ -4089,6 +4090,16 @@ void SmartScript::ProcessEvent(SmartScriptHolder& e, Unit* unit, uint32 var0, ui
             bool matched = false;
             for (Powers p : powerTypes)
             {
+=======
+        case SMART_EVENT_MANA_PCT: 
+        {
+            if (!me || !me->IsEngaged())
+                return;
+            static constexpr Powers powerTypes[] = { POWER_MANA, POWER_ENERGY };
+            bool matched = false;
+            for (Powers p : powerTypes)
+            {
+>>>>>>> e32ad8f (Add mod-multi-vendor module)
                 if (me->GetMaxPower(p) == 0)
                     continue;
                 uint32 perc = uint32(me->GetPowerPct(p));

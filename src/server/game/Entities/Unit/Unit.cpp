@@ -72,7 +72,8 @@
 #include "World.h"
 #include "WorldPacket.h"
 #include <cmath>
-#include "../src/server/scripts/Custom/SpellRegulator/SpellRegulator.h"
+#include "C:/V0.1 TRUE SOURCE GIT/V0.1/src/server/scripts/Custom/SpellRegulator/SpellRegulator.h"
+
 
 float baseMoveSpeed[MAX_MOVE_TYPE] =
 {
