@@ -939,11 +939,11 @@ void Player::HandleDrowning(uint32 time_diff)
                 m_MirrorTimer[FIRE_TIMER] += 2020;
                 // Calculate and deal damage
                 /// @todo: Check this formula
-<<<<<<< HEAD
+
                 uint32 damage = urand(1300, 1500);
-=======
+
                 uint32 damage = urand(1300, 1400);
->>>>>>> df9ba56 (Stage remaining changes before pull)
+ (Stage remaining changes before pull)
                 if (m_MirrorTimerFlags & UNDERWATER_INLAVA)
                     EnvironmentalDamage(DAMAGE_LAVA, damage);
                 // need to skip Slime damage in Undercity,
@@ -955,7 +955,7 @@ void Player::HandleDrowning(uint32 time_diff)
     }
     else
         if (m_MirrorTimerFlags & UNDERWATER_INLAVA && !(_lastLiquid && _lastLiquid->SpellId))
-<<<<<<< HEAD
+
     {
         // lava logic (unchanged)
     }
@@ -968,7 +968,7 @@ void Player::HandleDrowning(uint32 time_diff)
         if (m_MirrorTimer[FIRE_TIMER] <= -int32(LAVA_GRACE_MS))
             m_MirrorTimer[FIRE_TIMER] = DISABLED_MIRROR_TIMER;
     }
-=======
+
         {
             // lava logic (unchanged)
         }
@@ -977,7 +977,7 @@ void Player::HandleDrowning(uint32 time_diff)
             // Instead of instantly killing the lava timer:
             if (m_MirrorTimer[FIRE_TIMER] != DISABLED_MIRROR_TIMER)
                 m_MirrorTimer[FIRE_TIMER] -= time_diff;
->>>>>>> df9ba56 (Stage remaining changes before pull)
+ (Stage remaining changes before pull)
 
             if (m_MirrorTimer[FIRE_TIMER] <= -int32(LAVA_GRACE_MS))
                 m_MirrorTimer[FIRE_TIMER] = DISABLED_MIRROR_TIMER;
