@@ -930,38 +930,33 @@ void Player::HandleDrowning(uint32 time_diff)
     {
         // Breath timer not activated - activate it
         if (m_MirrorTimer[FIRE_TIMER] == DISABLED_MIRROR_TIMER)
+        {
             m_MirrorTimer[FIRE_TIMER] = getMaxTimer(FIRE_TIMER);
+        }
         else
         {
             m_MirrorTimer[FIRE_TIMER] -= time_diff;
+
             if (m_MirrorTimer[FIRE_TIMER] < 0)
             {
                 m_MirrorTimer[FIRE_TIMER] += 2020;
+
                 // Calculate and deal damage
                 /// @todo: Check this formula
-
                 uint32 damage = urand(1300, 1500);
 
-                uint32 damage = urand(1300, 1400);
- (Stage remaining changes before pull)
                 if (m_MirrorTimerFlags & UNDERWATER_INLAVA)
                     EnvironmentalDamage(DAMAGE_LAVA, damage);
-                // need to skip Slime damage in Undercity,
-                //  maybe someone can find better way to handle environmental damage
-                //else if (m_zoneUpdateId != 1497)
-                //    EnvironmentalDamage(DAMAGE_SLIME, damage);
+
+                // Slime damage can be handled separately if needed
+                // if (m_zoneUpdateId != 1497)
+                //     EnvironmentalDamage(DAMAGE_SLIME, damage);
             }
         }
     }
     else
-        if (m_MirrorTimerFlags & UNDERWATER_INLAVA && !(_lastLiquid && _lastLiquid->SpellId))
-
     {
-        // lava logic (unchanged)
-    }
-    else
-    {
-        // Instead of instantly killing the lava timer:
+        // Instead of instantly killing the lava timer
         if (m_MirrorTimer[FIRE_TIMER] != DISABLED_MIRROR_TIMER)
             m_MirrorTimer[FIRE_TIMER] -= time_diff;
 
@@ -969,19 +964,6 @@ void Player::HandleDrowning(uint32 time_diff)
             m_MirrorTimer[FIRE_TIMER] = DISABLED_MIRROR_TIMER;
     }
 
-        {
-            // lava logic (unchanged)
-        }
-        else
-        {
-            // Instead of instantly killing the lava timer:
-            if (m_MirrorTimer[FIRE_TIMER] != DISABLED_MIRROR_TIMER)
-                m_MirrorTimer[FIRE_TIMER] -= time_diff;
- (Stage remaining changes before pull)
-
-            if (m_MirrorTimer[FIRE_TIMER] <= -int32(LAVA_GRACE_MS))
-                m_MirrorTimer[FIRE_TIMER] = DISABLED_MIRROR_TIMER;
-        }
     // Recheck timers flag
     m_MirrorTimerFlags &= ~UNDERWATER_EXIST_TIMERS;
     for (uint8 i = 0; i < MAX_TIMERS; ++i)
