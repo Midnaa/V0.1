@@ -44,10 +44,10 @@ enum VendorLists
 #define GOSSIP_PRERAID_DRUID    "Druid Pre-Raid BiS"
 
 // Thorium Brotherhood
-#define GOSSIP_TB_FRIENDLY "|TInterface/ICONS/INV_Misc_Token_ArgentDawn3:24:24:-18|t[Friendly]"
-#define GOSSIP_TB_HONORED  "|TInterface/ICONS/INV_Misc_Token_ArgentDawn2:24:24:-18|t[Honored]"
-#define GOSSIP_TB_REVERED  "|TInterface/ICONS/INV_Misc_Token_ArgentDawn4:24:24:-18|t[Revered]"
-#define GOSSIP_TB_EXALTED  "|TInterface/ICONS/INV_Misc_Token_ArgentDawn1:24:24:-18|t[Exalted]"
+#define GOSSIP_TB_FRIENDLY "|TInterface\Icons\achievement_reputation_01:30:30|t Friendly Rewards"
+#define GOSSIP_TB_HONORED  "|TInterface\Icons\achievement_reputation_02:30:30|t Honored Rewards"
+#define GOSSIP_TB_REVERED  "|TInterface\Icons\achievement_reputation_03:30:30|t Revered Rewards"
+#define GOSSIP_TB_EXALTED  "|TInterface\Icons\achievement_reputation_08:30:30|t Exalted Rewards"
 
 // Gray requirement text
 #define REQ_FRIENDLY "|cff808080Requires Friendly|r"

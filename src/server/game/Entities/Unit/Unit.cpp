@@ -73,6 +73,7 @@
 #include "WorldPacket.h"
 #include <cmath>
 #include "../src/server/scripts/Custom/SpellRegulator/SpellRegulator.h"
+//#include "C:\V0.1 TRUE SOURCE GIT\V0.1\src\server\scripts\Custom\SpellRegulator\SpellRegulator.h"
 
 
 float baseMoveSpeed[MAX_MOVE_TYPE] =
@@ -840,10 +841,7 @@ uint32 Unit::DealDamage(Unit* attacker, Unit* victim, uint32 damage, CleanDamage
     }
 
     // Hook for OnDamage Event
-    sScriptMgr->OnDamage(attacker, victim, damage);
 
-    if ((damagetype == SPELL_DIRECT_DAMAGE || damagetype == DOT) && spellProto)
-        sSpellRegulator->Regulate(damage, spellProto->Id, attacker->GetEntry());
 
     if (victim->IsPlayer() && attacker != victim)
     {
@@ -1470,6 +1468,28 @@ void Unit::CalculateSpellDamageTaken(SpellNonMeleeDamage* damageInfo, int32 dama
         damageInfo->resist = dmgInfo.GetResist();
         damageInfo->damage = dmgInfo.GetDamage();
     }
+    // Calculate absorb resist
+    if (damageInfo->damage > 0)
+    {
+        DamageInfo dmgInfo(*damageInfo, SPELL_DIRECT_DAMAGE);
+        Unit::CalcAbsorbResist(dmgInfo);
+        damageInfo->absorb = dmgInfo.GetAbsorb();
+        damageInfo->resist = dmgInfo.GetResist();
+        damageInfo->damage = dmgInfo.GetDamage();
+    }
+
+    // --- SpellRegulator: make log + applied damage match ---
+    if (damageInfo->damage > 0 && spellInfo)
+    {
+        uint32 casterEntry = 0;
+        if (Unit* caster = damageInfo->attacker)
+            if (caster->IsCreature())
+                casterEntry = caster->GetEntry();
+
+        uint32 regulated = damageInfo->damage;
+        sSpellRegulator->Regulate(regulated, spellInfo->Id, casterEntry);
+        damageInfo->damage = regulated;
+    }
 }
 
 void Unit::DealSpellDamage(SpellNonMeleeDamage* damageInfo, bool durabilityLoss, Spell const* spell /*= nullptr*/)
@@ -2012,7 +2032,10 @@ void Unit::DealDamageShieldDamage(Unit* victim)
             damage = caster->SpellDamageBonusDone(this, i_spellProto, damage, SPELL_DIRECT_DAMAGE, (*dmgShieldItr)->GetEffIndex());
             damage = this->SpellDamageBonusTaken(caster, i_spellProto, damage, SPELL_DIRECT_DAMAGE);
         }
-
+        // --- SpellRegulator for damage shield ---
+        // The attacker passed to DealDamage() below is `victim` (aura holder), so use its entry.
+        uint32 shieldOwnerEntry = victim->IsCreature() ? victim->GetEntry() : 0;
+        sSpellRegulator->Regulate(damage, i_spellProto->Id, shieldOwnerEntry);
         uint32 absorb = 0;
 
         DamageInfo dmgInfo(victim, this, damage, i_spellProto, i_spellProto->GetSchoolMask(), SPELL_DIRECT_DAMAGE);

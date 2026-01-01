@@ -39,6 +39,8 @@
 #include "Util.h"
 #include "Vehicle.h"
 #include "WorldPacket.h"
+//#include "C:\V0.1 TRUE SOURCE GIT\V0.1\src\server\scripts\Custom\SpellRegulator\SpellRegulator.h"
+#include "../src/server/scripts/Custom/SpellRegulator/SpellRegulator.h"
 
 /// @todo: this import is not necessary for compilation and marked as unused by the IDE
 //  however, for some reasons removing it would cause a damn linking issue
@@ -6733,6 +6735,11 @@ void AuraEffect::HandlePeriodicDamageAurasTick(Unit* target, Unit* caster) const
     LOG_DEBUG("spells.aura.effect", "PeriodicTick: {} attacked {} for {} dmg inflicted by {} abs is {}",
                     GetCasterGUID().ToString(), target->GetGUID().ToString(), damage, GetId(), absorb);
     Unit::DealDamageMods(target, damage, &absorb);
+    if (damage && GetSpellInfo())
+    {
+        uint32 casterEntry = (caster && caster->IsCreature()) ? caster->GetEntry() : 0;
+        sSpellRegulator->Regulate(damage, GetSpellInfo()->Id, casterEntry);
+    }
 
     // Set trigger flag
     uint32 procAttacker = PROC_FLAG_DONE_PERIODIC;
@@ -6837,7 +6844,12 @@ void AuraEffect::HandlePeriodicHealthLeechAuraTick(Unit* target, Unit* caster) c
     }
 
     damage = dmgInfo.GetDamage();
-
+    // --- SpellRegulator: make log + applied damage match ---
+    if (damage && GetSpellInfo())
+    {
+        uint32 casterEntry = (caster && caster->IsCreature()) ? caster->GetEntry() : 0;
+        sSpellRegulator->Regulate(damage, GetSpellInfo()->Id, casterEntry);
+    }
     LOG_DEBUG("spells.aura.effect", "PeriodicTick: {} health leech of {} for {} dmg inflicted by {} abs is {}",
                     GetCasterGUID().ToString(), target->GetGUID().ToString(), damage, GetId(), absorb);
     if (caster)
