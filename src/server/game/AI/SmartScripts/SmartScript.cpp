@@ -2759,6 +2759,37 @@ void SmartScript::ProcessAction(SmartScriptHolder& e, Unit* unit, uint32 var0, u
             if (targets.empty())
                 break;
 
+            // Helper: snap Z at pos.XY to the ground (or water/ground if you prefer)
+            auto SnapToGroundZ = [](WorldObject* ref, Position& pos)
+                {
+                    if (!ref)
+                        return;
+
+                    Map* map = ref->GetMap();
+                    if (!map)
+                        return;
+
+                    float x = pos.GetPositionX();
+                    float y = pos.GetPositionY();
+
+                    // Start the search a bit above current Z to handle slopes/cliffs better
+                    float searchZ = pos.GetPositionZ() + 10.0f;
+
+                    // Common overload (adjust to your core if needed)
+                    float groundZ = map->GetHeight(x, y, searchZ, true);
+
+                    // INVALID_HEIGHT check differs per core:
+                    // - If you have INVALID_HEIGHT, use it.
+                    // - Otherwise many cores return something like -100000.f on failure.
+#ifdef INVALID_HEIGHT
+                    if (groundZ > INVALID_HEIGHT)
+                        pos.m_positionZ = groundZ + 0.1f; // small lift to avoid tiny clipping
+#else
+                    if (groundZ > -100000.0f)
+                        pos.m_positionZ = groundZ + 0.1f;
+#endif
+                };
+
             TempSummonType summon_type = (e.action.summonVortex.summonDuration > 0) ? TEMPSUMMON_TIMED_DESPAWN : TEMPSUMMON_CORPSE_DESPAWN;
 
             float a = static_cast<float>(e.action.summonVortex.a);
@@ -2766,25 +2797,23 @@ void SmartScript::ProcessAction(SmartScriptHolder& e, Unit* unit, uint32 var0, u
             float r_max = static_cast<float>(e.action.summonVortex.r_max);
             float delta_phi = M_PI * static_cast<float>(e.action.summonVortex.phi_delta) / 180.0f;
 
-            // r(phi) = a * e ^ (k * phi)
-            // r(phi + delta_phi) = a * e ^ (k * (phi + delta_phi))
-            // r(phi + delta_phi) = a * e ^ (k * phi) * e ^ (k * delta_phi)
-            // r(phi + delta_phi) = r(phi) * e ^ (k * delta_phi)
             float factor = std::exp(k * delta_phi);
-
-            // r(0) = a * e ^ (k * 0) = a * e ^ 0 = a * 1 = a
-            float summonRadius = a;
 
             for (WorldObject* target : targets)
             {
-                // Offset by orientation, should not count into radius calculation,
-                // but is needed for vortex direction (polar coordinates)
+                // NOTE: your original code had summonRadius outside the target loop.
+                // If you ever have multiple targets, you want to reset it per target:
+                float summonRadius = a;
+
                 float phi = target->GetOrientation();
 
                 do
                 {
                     Position summonPosition(*target);
                     summonPosition.RelocatePolarOffset(phi, summonRadius);
+
+                    // *** Fix: snap Z to terrain at the final XY ***
+                    SnapToGroundZ(target, summonPosition);
 
                     me->SummonCreature(e.action.summonVortex.summonEntry, summonPosition, summon_type, e.action.summonVortex.summonDuration);
 
@@ -2795,10 +2824,35 @@ void SmartScript::ProcessAction(SmartScriptHolder& e, Unit* unit, uint32 var0, u
 
             break;
         }
+
         case SMART_ACTION_CONE_SUMMON:
         {
             if (!me)
                 break;
+
+            auto SnapToGroundZ = [](WorldObject* ref, Position& pos)
+                {
+                    if (!ref)
+                        return;
+
+                    Map* map = ref->GetMap();
+                    if (!map)
+                        return;
+
+                    float x = pos.GetPositionX();
+                    float y = pos.GetPositionY();
+                    float searchZ = pos.GetPositionZ() + 10.0f;
+
+                    float groundZ = map->GetHeight(x, y, searchZ, true);
+
+#ifdef INVALID_HEIGHT
+                    if (groundZ > INVALID_HEIGHT)
+                        pos.m_positionZ = groundZ + 0.1f;
+#else
+                    if (groundZ > -100000.0f)
+                        pos.m_positionZ = groundZ + 0.1f;
+#endif
+                };
 
             TempSummonType spawnType = (e.action.coneSummon.summonDuration > 0) ? TEMPSUMMON_TIMED_DESPAWN : TEMPSUMMON_CORPSE_DESPAWN;
 
@@ -2809,26 +2863,27 @@ void SmartScript::ProcessAction(SmartScriptHolder& e, Unit* unit, uint32 var0, u
             {
                 float deltaAngle = 0.0f;
                 if (radius > 0)
-                    deltaAngle = distInARow / radius;
+                    deltaAngle = distInARow / float(radius);
 
                 uint32 count = 1;
-                if (deltaAngle > 0)
-                    count += coneAngle / deltaAngle;
+                if (deltaAngle > 0.0f)
+                    count += uint32(coneAngle / deltaAngle);
 
                 float currentAngle = -static_cast<float>(count) * deltaAngle / 2.0f;
 
                 if (e.GetTargetType() == SMART_TARGET_SELF || e.GetTargetType() == SMART_TARGET_NONE)
                     currentAngle += G3D::fuzzyGt(e.target.o, 0.0f) ? (e.target.o - me->GetOrientation()) : 0.0f;
                 else if (!targets.empty())
-                {
                     currentAngle += (me->GetAngle(targets.front()) - me->GetOrientation());
-                }
 
                 for (uint32 index = 0; index < count; ++index)
                 {
                     Position spawnPosition(*me);
-                    spawnPosition.RelocatePolarOffset(currentAngle, radius);
+                    spawnPosition.RelocatePolarOffset(currentAngle, float(radius));
                     currentAngle += deltaAngle;
+
+                    // *** Fix: snap Z ***
+                    SnapToGroundZ(me, spawnPosition);
 
                     me->SummonCreature(e.action.coneSummon.summonEntry, spawnPosition, spawnType, e.action.coneSummon.summonDuration);
                 }
@@ -2836,6 +2891,7 @@ void SmartScript::ProcessAction(SmartScriptHolder& e, Unit* unit, uint32 var0, u
 
             break;
         }
+
         case SMART_ACTION_CU_ENCOUNTER_START:
         {
             for (WorldObject* target : targets)
@@ -3047,6 +3103,24 @@ void SmartScript::ProcessAction(SmartScriptHolder& e, Unit* unit, uint32 var0, u
             if (!me)
                 break;
 
+            auto SnapZAtXY = [](WorldObject* ref, float x, float y, float zHint) -> float
+                {
+                    if (!ref || !ref->GetMap())
+                        return zHint;
+
+                    float searchZ = zHint + 10.0f;
+                    float groundZ = ref->GetMap()->GetHeight(x, y, searchZ, true);
+
+#ifdef INVALID_HEIGHT
+                    if (groundZ > INVALID_HEIGHT)
+                        return groundZ + 0.1f;
+#else
+                    if (groundZ > -100000.0f)
+                        return groundZ + 0.1f;
+#endif
+                    return zHint;
+                };
+
             TempSummonType spawnType = (e.action.radialSummon.summonDuration > 0) ? TEMPSUMMON_TIMED_DESPAWN : TEMPSUMMON_CORPSE_DESPAWN;
 
             float startAngle = me->GetOrientation() + (static_cast<float>(e.action.radialSummon.startAngle) * M_PI / 180.0f);
@@ -3058,6 +3132,10 @@ void SmartScript::ProcessAction(SmartScriptHolder& e, Unit* unit, uint32 var0, u
                 {
                     Position summonPos = me->GetPosition();
                     summonPos.RelocatePolarOffset(itr * stepAngle, static_cast<float>(e.action.radialSummon.dist));
+
+                    // *** Fix: snap Z ***
+                    summonPos.m_positionZ = SnapZAtXY(me, summonPos.GetPositionX(), summonPos.GetPositionY(), summonPos.GetPositionZ());
+
                     me->SummonCreature(e.action.radialSummon.summonEntry, summonPos, spawnType, e.action.radialSummon.summonDuration);
                 }
                 break;
@@ -3066,11 +3144,21 @@ void SmartScript::ProcessAction(SmartScriptHolder& e, Unit* unit, uint32 var0, u
             for (uint32 itr = 0; itr < e.action.radialSummon.repetitions; itr++)
             {
                 float currentAngle = startAngle + (itr * stepAngle);
-                me->SummonCreature(e.action.radialSummon.summonEntry, me->GetPositionX(), me->GetPositionY(), me->GetPositionZ(), currentAngle, spawnType, e.action.radialSummon.summonDuration);
+
+                float x = me->GetPositionX();
+                float y = me->GetPositionY();
+                float z = me->GetPositionZ();
+
+                // *** Fix: snap Z at me XY (or if you later offset XY, snap those instead) ***
+                z = SnapZAtXY(me, x, y, z);
+
+                me->SummonCreature(e.action.radialSummon.summonEntry, x, y, z, currentAngle, spawnType, e.action.radialSummon.summonDuration);
             }
 
             break;
         }
+
+
         case SMART_ACTION_PLAY_SPELL_VISUAL:
         {
             for (WorldObject* target : targets)
