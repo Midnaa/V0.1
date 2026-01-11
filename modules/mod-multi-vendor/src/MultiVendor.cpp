@@ -514,8 +514,6 @@ public:
 
         AddGossipItemFor(player, GOSSIP_ICON_VENDOR, "Glyphs", GOSSIP_SENDER_MAIN, ACT_MAIN_GLYPHS);
         AddGossipItemFor(player, GOSSIP_ICON_VENDOR, "Enchants", GOSSIP_SENDER_MAIN, ACT_MAIN_ENCHANTS);
-        AddGossipItemFor(player, GOSSIP_ICON_VENDOR, "Glyphs", GOSSIP_SENDER_MAIN, ACT_MAIN_GLYPHS);
-        AddGossipItemFor(player, GOSSIP_ICON_VENDOR, "Enchants", GOSSIP_SENDER_MAIN, ACT_MAIN_ENCHANTS);
         AddGossipItemFor(player, GOSSIP_ICON_VENDOR, "Consumables", GOSSIP_SENDER_MAIN, ACT_MAIN_CONSUMABLES);
 
 
