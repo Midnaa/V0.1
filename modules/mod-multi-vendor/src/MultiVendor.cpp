@@ -44,7 +44,15 @@ enum VendorLists
     // Enchants
     VENDOR_ENCH_ARMOR_I = 500137,
     VENDOR_ENCH_ARMOR_II = 500138,
-    VENDOR_ENCH_WEAPON = 500136
+    VENDOR_ENCH_WEAPON = 500136,
+
+    // Consumables
+    VENDOR_CONS_BANDAGES = 500012,
+    VENDOR_CONS_ELIXIRS = 500029,
+    VENDOR_CONS_FLASKS = 500038,
+    VENDOR_CONS_SCROLLS = 500096,
+    VENDOR_CONS_POTIONS = 500135
+
 
 };
 
@@ -487,7 +495,17 @@ public:
         ACT_GLYPH_SHAMAN = 3206,
         ACT_GLYPH_WARLOCK = 3207,
         ACT_GLYPH_WARRIOR = 3208,
-        ACT_GLYPH_PRIEST = 3209
+        ACT_GLYPH_PRIEST = 3209,
+
+        ACT_MAIN_CONSUMABLES = 3003,
+
+        // Consumables
+        ACT_CONS_BANDAGES = 3301,
+        ACT_CONS_ELIXIRS = 3302,
+        ACT_CONS_FLASKS = 3303,
+        ACT_CONS_SCROLLS = 3304,
+        ACT_CONS_POTIONS = 3305
+
     };
 
     static void ShowMain(Player* player, Creature* creature)
@@ -496,6 +514,10 @@ public:
 
         AddGossipItemFor(player, GOSSIP_ICON_VENDOR, "Glyphs", GOSSIP_SENDER_MAIN, ACT_MAIN_GLYPHS);
         AddGossipItemFor(player, GOSSIP_ICON_VENDOR, "Enchants", GOSSIP_SENDER_MAIN, ACT_MAIN_ENCHANTS);
+        AddGossipItemFor(player, GOSSIP_ICON_VENDOR, "Glyphs", GOSSIP_SENDER_MAIN, ACT_MAIN_GLYPHS);
+        AddGossipItemFor(player, GOSSIP_ICON_VENDOR, "Enchants", GOSSIP_SENDER_MAIN, ACT_MAIN_ENCHANTS);
+        AddGossipItemFor(player, GOSSIP_ICON_VENDOR, "Consumables", GOSSIP_SENDER_MAIN, ACT_MAIN_CONSUMABLES);
+
 
         SendGossipMenuFor(player, player->GetGossipTextId(creature), creature->GetGUID());
     }
@@ -531,6 +553,21 @@ public:
         SendGossipMenuFor(player, player->GetGossipTextId(creature), creature->GetGUID());
     }
 
+    static void ShowConsumables(Player* player, Creature* creature)
+    {
+        ClearGossipMenuFor(player);
+
+        AddGossipItemFor(player, GOSSIP_ICON_VENDOR, "Bandages", GOSSIP_SENDER_MAIN, ACT_CONS_BANDAGES);
+        AddGossipItemFor(player, GOSSIP_ICON_VENDOR, "Elixirs", GOSSIP_SENDER_MAIN, ACT_CONS_ELIXIRS);
+        AddGossipItemFor(player, GOSSIP_ICON_VENDOR, "Flasks", GOSSIP_SENDER_MAIN, ACT_CONS_FLASKS);
+        AddGossipItemFor(player, GOSSIP_ICON_VENDOR, "Scrolls", GOSSIP_SENDER_MAIN, ACT_CONS_SCROLLS);
+        AddGossipItemFor(player, GOSSIP_ICON_VENDOR, "Potions", GOSSIP_SENDER_MAIN, ACT_CONS_POTIONS);
+
+        AddGossipItemFor(player, GOSSIP_ICON_CHAT, "Back", GOSSIP_SENDER_MAIN, ACT_BACK_MAIN);
+        SendGossipMenuFor(player, player->GetGossipTextId(creature), creature->GetGUID());
+    }
+
+
     static void OpenVendor(Player* player, Creature* creature, uint32 vendorEntry)
     {
         CloseGossipMenuFor(player);
@@ -547,6 +584,16 @@ public:
     {
         switch (action)
         {
+        case ACT_MAIN_CONSUMABLES:
+            ShowConsumables(player, creature);
+            return true;
+
+        case ACT_CONS_BANDAGES: OpenVendor(player, creature, VENDOR_CONS_BANDAGES); return true;
+        case ACT_CONS_ELIXIRS:  OpenVendor(player, creature, VENDOR_CONS_ELIXIRS);  return true;
+        case ACT_CONS_FLASKS:   OpenVendor(player, creature, VENDOR_CONS_FLASKS);   return true;
+        case ACT_CONS_SCROLLS:  OpenVendor(player, creature, VENDOR_CONS_SCROLLS);  return true;
+        case ACT_CONS_POTIONS:  OpenVendor(player, creature, VENDOR_CONS_POTIONS);  return true;
+
         case ACT_BACK_MAIN:
             ShowMain(player, creature);
             return true;
@@ -575,6 +622,8 @@ public:
         case ACT_GLYPH_WARRIOR: if (!EnsureClass(player, CLASS_WARRIOR)) { ShowGlyphs(player, creature); return true; } OpenVendor(player, creature, VENDOR_GLYPH_WARRIOR); return true;
         case ACT_GLYPH_PRIEST:  if (!EnsureClass(player, CLASS_PRIEST)) { ShowGlyphs(player, creature); return true; } OpenVendor(player, creature, VENDOR_GLYPH_PRIEST);  return true;
         }
+
+
 
         ShowMain(player, creature);
         return true;
