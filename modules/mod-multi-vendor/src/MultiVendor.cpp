@@ -28,7 +28,24 @@ enum VendorLists
     VENDOR_TB_FRIENDLY = 7100001,
     VENDOR_TB_HONORED = 7100002,
     VENDOR_TB_REVERED = 7100003,
-    VENDOR_TB_EXALTED = 7100004
+    VENDOR_TB_EXALTED = 7100004,
+
+    // Glyphs
+    VENDOR_GLYPH_DRUID = 500027,
+    VENDOR_GLYPH_HUNTER = 500046,
+    VENDOR_GLYPH_MAGE = 500057,
+    VENDOR_GLYPH_PALADIN = 500068,
+    VENDOR_GLYPH_ROGUE = 500095,
+    VENDOR_GLYPH_SHAMAN = 500097,
+    VENDOR_GLYPH_WARLOCK = 500110,
+    VENDOR_GLYPH_WARRIOR = 500111,
+    VENDOR_GLYPH_PRIEST = 500113,
+
+    // Enchants
+    VENDOR_ENCH_ARMOR_I = 500137,
+    VENDOR_ENCH_ARMOR_II = 500138,
+    VENDOR_ENCH_WEAPON = 500136
+
 };
 
 /* ========================================================= */
@@ -444,6 +461,128 @@ public:
     }
 };
 
+class npc_glyphs_enchants_hub : public CreatureScript
+{
+public:
+    npc_glyphs_enchants_hub() : CreatureScript("npc_glyphs_enchants_hub") {}
+
+    enum Actions : uint32
+    {
+        ACT_MAIN_GLYPHS = 3001,
+        ACT_MAIN_ENCHANTS = 3002,
+
+        ACT_BACK_MAIN = 3099,
+
+        // Enchants
+        ACT_ENCH_ARMOR_I = 3101,
+        ACT_ENCH_ARMOR_II = 3102,
+        ACT_ENCH_WEAPON = 3103,
+
+        // Glyphs (class selection)
+        ACT_GLYPH_DRUID = 3201,
+        ACT_GLYPH_HUNTER = 3202,
+        ACT_GLYPH_MAGE = 3203,
+        ACT_GLYPH_PALADIN = 3204,
+        ACT_GLYPH_ROGUE = 3205,
+        ACT_GLYPH_SHAMAN = 3206,
+        ACT_GLYPH_WARLOCK = 3207,
+        ACT_GLYPH_WARRIOR = 3208,
+        ACT_GLYPH_PRIEST = 3209
+    };
+
+    static void ShowMain(Player* player, Creature* creature)
+    {
+        ClearGossipMenuFor(player);
+
+        AddGossipItemFor(player, GOSSIP_ICON_VENDOR, "Glyphs", GOSSIP_SENDER_MAIN, ACT_MAIN_GLYPHS);
+        AddGossipItemFor(player, GOSSIP_ICON_VENDOR, "Enchants", GOSSIP_SENDER_MAIN, ACT_MAIN_ENCHANTS);
+
+        SendGossipMenuFor(player, player->GetGossipTextId(creature), creature->GetGUID());
+    }
+
+    static void ShowEnchants(Player* player, Creature* creature)
+    {
+        ClearGossipMenuFor(player);
+
+        AddGossipItemFor(player, GOSSIP_ICON_VENDOR, "Armor Enchants I", GOSSIP_SENDER_MAIN, ACT_ENCH_ARMOR_I);
+        AddGossipItemFor(player, GOSSIP_ICON_VENDOR, "Armor Enchants II", GOSSIP_SENDER_MAIN, ACT_ENCH_ARMOR_II);
+        AddGossipItemFor(player, GOSSIP_ICON_VENDOR, "Weapon Enchants", GOSSIP_SENDER_MAIN, ACT_ENCH_WEAPON);
+
+        AddGossipItemFor(player, GOSSIP_ICON_CHAT, "Back", GOSSIP_SENDER_MAIN, ACT_BACK_MAIN);
+        SendGossipMenuFor(player, player->GetGossipTextId(creature), creature->GetGUID());
+    }
+
+    static void ShowGlyphs(Player* player, Creature* creature)
+    {
+        ClearGossipMenuFor(player);
+
+        // colored class names (you already defined C_* above)
+        AddGossipItemFor(player, GOSSIP_ICON_VENDOR, std::string(C_DRUID) + "Druid" + C_END, GOSSIP_SENDER_MAIN, ACT_GLYPH_DRUID);
+        AddGossipItemFor(player, GOSSIP_ICON_VENDOR, std::string(C_HUNTER) + "Hunter" + C_END, GOSSIP_SENDER_MAIN, ACT_GLYPH_HUNTER);
+        AddGossipItemFor(player, GOSSIP_ICON_VENDOR, std::string(C_MAGE) + "Mage" + C_END, GOSSIP_SENDER_MAIN, ACT_GLYPH_MAGE);
+        AddGossipItemFor(player, GOSSIP_ICON_VENDOR, std::string(C_PALADIN) + "Paladin" + C_END, GOSSIP_SENDER_MAIN, ACT_GLYPH_PALADIN);
+        AddGossipItemFor(player, GOSSIP_ICON_VENDOR, std::string(C_ROGUE) + "Rogue" + C_END, GOSSIP_SENDER_MAIN, ACT_GLYPH_ROGUE);
+        AddGossipItemFor(player, GOSSIP_ICON_VENDOR, std::string(C_SHAMAN) + "Shaman" + C_END, GOSSIP_SENDER_MAIN, ACT_GLYPH_SHAMAN);
+        AddGossipItemFor(player, GOSSIP_ICON_VENDOR, std::string(C_WARLOCK) + "Warlock" + C_END, GOSSIP_SENDER_MAIN, ACT_GLYPH_WARLOCK);
+        AddGossipItemFor(player, GOSSIP_ICON_VENDOR, std::string(C_WARRIOR) + "Warrior" + C_END, GOSSIP_SENDER_MAIN, ACT_GLYPH_WARRIOR);
+        AddGossipItemFor(player, GOSSIP_ICON_VENDOR, std::string(C_PRIEST) + "Priest" + C_END, GOSSIP_SENDER_MAIN, ACT_GLYPH_PRIEST);
+
+        AddGossipItemFor(player, GOSSIP_ICON_CHAT, "Back", GOSSIP_SENDER_MAIN, ACT_BACK_MAIN);
+        SendGossipMenuFor(player, player->GetGossipTextId(creature), creature->GetGUID());
+    }
+
+    static void OpenVendor(Player* player, Creature* creature, uint32 vendorEntry)
+    {
+        CloseGossipMenuFor(player);
+        player->GetSession()->SendListInventory(creature->GetGUID(), vendorEntry);
+    }
+
+    bool OnGossipHello(Player* player, Creature* creature) override
+    {
+        ShowMain(player, creature);
+        return true;
+    }
+
+    bool OnGossipSelect(Player* player, Creature* creature, uint32 /*sender*/, uint32 action) override
+    {
+        switch (action)
+        {
+        case ACT_BACK_MAIN:
+            ShowMain(player, creature);
+            return true;
+
+        case ACT_MAIN_GLYPHS:
+            ShowGlyphs(player, creature);
+            return true;
+
+        case ACT_MAIN_ENCHANTS:
+            ShowEnchants(player, creature);
+            return true;
+
+            // Enchants (no class restriction)
+        case ACT_ENCH_ARMOR_I:  OpenVendor(player, creature, VENDOR_ENCH_ARMOR_I);  return true;
+        case ACT_ENCH_ARMOR_II: OpenVendor(player, creature, VENDOR_ENCH_ARMOR_II); return true;
+        case ACT_ENCH_WEAPON:   OpenVendor(player, creature, VENDOR_ENCH_WEAPON);   return true;
+
+            // Glyphs (restrict: only the correct class may open that class vendor)
+        case ACT_GLYPH_DRUID:   if (!EnsureClass(player, CLASS_DRUID)) { ShowGlyphs(player, creature); return true; } OpenVendor(player, creature, VENDOR_GLYPH_DRUID);   return true;
+        case ACT_GLYPH_HUNTER:  if (!EnsureClass(player, CLASS_HUNTER)) { ShowGlyphs(player, creature); return true; } OpenVendor(player, creature, VENDOR_GLYPH_HUNTER);  return true;
+        case ACT_GLYPH_MAGE:    if (!EnsureClass(player, CLASS_MAGE)) { ShowGlyphs(player, creature); return true; } OpenVendor(player, creature, VENDOR_GLYPH_MAGE);    return true;
+        case ACT_GLYPH_PALADIN: if (!EnsureClass(player, CLASS_PALADIN)) { ShowGlyphs(player, creature); return true; } OpenVendor(player, creature, VENDOR_GLYPH_PALADIN); return true;
+        case ACT_GLYPH_ROGUE:   if (!EnsureClass(player, CLASS_ROGUE)) { ShowGlyphs(player, creature); return true; } OpenVendor(player, creature, VENDOR_GLYPH_ROGUE);   return true;
+        case ACT_GLYPH_SHAMAN:  if (!EnsureClass(player, CLASS_SHAMAN)) { ShowGlyphs(player, creature); return true; } OpenVendor(player, creature, VENDOR_GLYPH_SHAMAN);  return true;
+        case ACT_GLYPH_WARLOCK: if (!EnsureClass(player, CLASS_WARLOCK)) { ShowGlyphs(player, creature); return true; } OpenVendor(player, creature, VENDOR_GLYPH_WARLOCK); return true;
+        case ACT_GLYPH_WARRIOR: if (!EnsureClass(player, CLASS_WARRIOR)) { ShowGlyphs(player, creature); return true; } OpenVendor(player, creature, VENDOR_GLYPH_WARRIOR); return true;
+        case ACT_GLYPH_PRIEST:  if (!EnsureClass(player, CLASS_PRIEST)) { ShowGlyphs(player, creature); return true; } OpenVendor(player, creature, VENDOR_GLYPH_PRIEST);  return true;
+        }
+
+        ShowMain(player, creature);
+        return true;
+    }
+};
+
+
+
 /* ========================================================= */
 /* ====================== LOADER =========================== */
 /* ========================================================= */
@@ -452,4 +591,5 @@ void AddMultiVendor_scripts()
 {
     new npc_preraid_bis_hub();
     new npc_thorium_brotherhood();
+    new npc_glyphs_enchants_hub();
 }
