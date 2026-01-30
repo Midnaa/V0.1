@@ -1157,8 +1157,8 @@ bool MythicPlus::CheckGroupLevelForKeystone(const Player* player) const
         Player* member = ObjectAccessor::FindConnectedPlayer(mitr->guid);
         if (!member)
             return false;
-        if (member->GetLevel() < DEFAULT_MAX_LEVEL)
-            return false;
+        // if (member->GetLevel() < DEFAULT_MAX_LEVEL)
+          //  return false;
     }
 
     return true;
