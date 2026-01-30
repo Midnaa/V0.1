@@ -12,11 +12,6 @@
 #include "mythic_affix.h"
 #include "mythic_plus.h"
 
- // Treat level 63+ as boss (your bosses are 63, trash 60-62)
-static constexpr uint8 MYTHIC_TRASH_MIN_LEVEL = 60;
-static constexpr uint8 MYTHIC_TRASH_MAX_LEVEL = 62;
-static constexpr uint8 MYTHIC_BOSS_LEVEL = 63;
-
 MythicPlus::MythicPlus()
 {
     enabled = true;
@@ -438,21 +433,21 @@ void MythicPlus::LoadMythicPlusSnapshotsFromDB()
 {
     std::string query =
         "select "
-            "mpds.id, "
-            "mpds.starttime, "
-            "mpds.snaptime, "
-            "mpds.creature_entry, "
-            "mpds.map, "
-            "group_concat(mpds.char_name) players, "
-            "max(mpds.combattime) combattime, "
-            "max(mythiclevel) mythiclevel, "
-            "max(creature_final_boss) creature_final_boss, "
-            "max(rewarded) rewarded, "
-            "mpds.mapdifficulty, "
-            "mpds.timelimit, "
-            "max(mpds.penalty_on_death) penalty_on_death, "
-            "max(mpds.deaths) deaths, "
-            "max(random_affix_count) random_affix_count "
+        "mpds.id, "
+        "mpds.starttime, "
+        "mpds.snaptime, "
+        "mpds.creature_entry, "
+        "mpds.map, "
+        "group_concat(mpds.char_name) players, "
+        "max(mpds.combattime) combattime, "
+        "max(mythiclevel) mythiclevel, "
+        "max(creature_final_boss) creature_final_boss, "
+        "max(rewarded) rewarded, "
+        "mpds.mapdifficulty, "
+        "mpds.timelimit, "
+        "max(mpds.penalty_on_death) penalty_on_death, "
+        "max(mpds.deaths) deaths, "
+        "max(random_affix_count) random_affix_count "
         "from mythic_plus_dungeon_snapshot mpds "
         "group by mpds.id, mpds.map, mpds.mapdifficulty, mpds.starttime, mpds.timelimit, mpds.snaptime, mpds.creature_entry";
     _queryProcessor.AddCallback(CharacterDatabase.AsyncQuery(query).WithCallback(std::bind(&MythicPlus::MythicPlusSnapshotsDBCallback, this, std::placeholders::_1)));
@@ -478,7 +473,7 @@ void MythicPlus::LoadMythicAffixFromDB()
         }
         float val1 = fields[2].Get<float>();
         float val2 = fields[3].Get<float>();
-        affixesFromDB[lvl].push_back({lvl, affixType, val1, val2});
+        affixesFromDB[lvl].push_back({ lvl, affixType, val1, val2 });
     } while (result->NextRow());
 }
 
@@ -771,18 +766,18 @@ void MythicPlus::LoadSpellOverridesFromDB()
 {
     switch (Rank)
     {
-        case CREATURE_ELITE_NORMAL:
-            return sWorld->getRate(RATE_CREATURE_NORMAL_HP);
-        case CREATURE_ELITE_ELITE:
-            return sWorld->getRate(RATE_CREATURE_ELITE_ELITE_HP);
-        case CREATURE_ELITE_RAREELITE:
-            return sWorld->getRate(RATE_CREATURE_ELITE_RAREELITE_HP);
-        case CREATURE_ELITE_WORLDBOSS:
-            return sWorld->getRate(RATE_CREATURE_ELITE_WORLDBOSS_HP);
-        case CREATURE_ELITE_RARE:
-            return sWorld->getRate(RATE_CREATURE_ELITE_RARE_HP);
-        default:
-            return sWorld->getRate(RATE_CREATURE_ELITE_ELITE_HP);
+    case CREATURE_ELITE_NORMAL:
+        return sWorld->getRate(RATE_CREATURE_NORMAL_HP);
+    case CREATURE_ELITE_ELITE:
+        return sWorld->getRate(RATE_CREATURE_ELITE_ELITE_HP);
+    case CREATURE_ELITE_RAREELITE:
+        return sWorld->getRate(RATE_CREATURE_ELITE_RAREELITE_HP);
+    case CREATURE_ELITE_WORLDBOSS:
+        return sWorld->getRate(RATE_CREATURE_ELITE_WORLDBOSS_HP);
+    case CREATURE_ELITE_RARE:
+        return sWorld->getRate(RATE_CREATURE_ELITE_RARE_HP);
+    default:
+        return sWorld->getRate(RATE_CREATURE_ELITE_ELITE_HP);
     }
 }
 
@@ -962,7 +957,7 @@ void MythicPlus::SortSnapshots(std::vector<std::pair<std::pair<uint32, uint64>, 
             return true;
 
         return snapATime < snapBTime;
-    });
+        });
 
     uint32 internalId = 0;
     for (auto& s : snapshots)
@@ -1071,12 +1066,11 @@ void MythicPlus::ScaleCreature(Creature* creature)
         creatureData->extraDamageMultiplier = boss ? mapScale->bossDmgScale : mapScale->trashDmgScale;
 
     // only scale creatures from lower level dungeons
-    // (if it's already 60+, leave it alone)
-    if (creature->GetLevel() >= MYTHIC_TRASH_MIN_LEVEL)
+    if (creature->GetLevel() >= DEFAULT_MAX_LEVEL)
         return;
 
-    // scale: bosses = 63, trash = 60-62
-    uint8 chosenLevel = boss ? MYTHIC_BOSS_LEVEL : urand(MYTHIC_TRASH_MIN_LEVEL, MYTHIC_TRASH_MAX_LEVEL);
+    // assume level 82 for bosses and level [80, 81] for trash mobs
+    uint8 chosenLevel = boss ? 82 : urand(80, 81);
 
     CreatureTemplate const* cInfo = sObjectMgr->GetCreatureTemplate(creature->GetEntry());
     ASSERT(cInfo);
@@ -1086,8 +1080,8 @@ void MythicPlus::ScaleCreature(Creature* creature)
 
     creature->SetLevel(chosenLevel);
 
-    uint8 exp = EXPANSION_CLASSIC; // all mobs should scale to WOTLK expansion
-    
+    uint8 exp = EXPANSION_WRATH_OF_THE_LICH_KING; // all mobs should scale to WOTLK expansion
+
     uint32 hpMod = boss ? urand(20, 21) : 4;
     if (map->IsHeroic())
         hpMod = boss ? urand(30, 31) : 5;
@@ -1135,14 +1129,9 @@ void MythicPlus::ScaleCreature(Creature* creature)
     creature->UpdateAllStats();
 }
 
-
-
 bool MythicPlus::IsBoss(Creature* creature) const
 {
-    if (!creature)
-        return false;
-
-    return creature->GetLevel() >= MYTHIC_BOSS_LEVEL; // use == 63 if you want it strict
+    return creature->IsDungeonBoss() || IsFinalBoss(creature->GetEntry());
 }
 
 const MythicPlus::MapScale* MythicPlus::GetMapScale(const Map* map) const
@@ -1168,8 +1157,8 @@ bool MythicPlus::CheckGroupLevelForKeystone(const Player* player) const
         Player* member = ObjectAccessor::FindConnectedPlayer(mitr->guid);
         if (!member)
             return false;
-        // if (member->GetLevel() < DEFAULT_MAX_LEVEL)
-          //  return false;
+        if (member->GetLevel() < DEFAULT_MAX_LEVEL)
+            return false;
     }
 
     return true;

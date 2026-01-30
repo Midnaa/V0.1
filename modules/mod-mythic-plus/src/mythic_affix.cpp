@@ -22,26 +22,26 @@
 {
     switch (type)
     {
-        case AFFIX_TYPE_HEALTH_INCREASE:
-            return new HealthIncreaseAffix(val1);
-        case AFFIX_TYPE_HEALTH_INCREASE_TRASH:
-            return new TrashHealthIncreaseAffix(val1);
-        case AFFIX_TYPE_HEALTH_INCREASE_BOSSES:
-            return new BossHealthIncreaseAffix(val1);
-        case AFFIX_TYPE_MULTIPLE_ENEMIES:
-            return new MultipleEnemiesAffix(val1);
-        case AFFIX_TYPE_MORE_CREATURE_DAMAGE:
-            return new MoreDamageForCreaturesAffix(val1);
-        case AFFIX_TYPE_RANDOMLY_EXPLODE:
-            return new RandomlyExplodeAffix();
-        case AFFIX_TYPE_LIGHTNING_SPHERE:
-            return new LightningSphereAffix((uint32)val1, val2);
-        case AFFIX_TYPE_RANDOM_ENEMY_ENRAGE:
-            return new EnemyEnrageAffix();
-        case AFFIX_TYPE_RANDOM_ENTANGLING_ROOTS:
-            return new EntanglingRootsAffix();
-        default:
-            return nullptr;
+    case AFFIX_TYPE_HEALTH_INCREASE:
+        return new HealthIncreaseAffix(val1);
+    case AFFIX_TYPE_HEALTH_INCREASE_TRASH:
+        return new TrashHealthIncreaseAffix(val1);
+    case AFFIX_TYPE_HEALTH_INCREASE_BOSSES:
+        return new BossHealthIncreaseAffix(val1);
+    case AFFIX_TYPE_MULTIPLE_ENEMIES:
+        return new MultipleEnemiesAffix(val1);
+    case AFFIX_TYPE_MORE_CREATURE_DAMAGE:
+        return new MoreDamageForCreaturesAffix(val1);
+    case AFFIX_TYPE_RANDOMLY_EXPLODE:
+        return new RandomlyExplodeAffix();
+    case AFFIX_TYPE_LIGHTNING_SPHERE:
+        return new LightningSphereAffix((uint32)val1, val2);
+    case AFFIX_TYPE_RANDOM_ENEMY_ENRAGE:
+        return new EnemyEnrageAffix();
+    case AFFIX_TYPE_RANDOM_ENTANGLING_ROOTS:
+        return new EntanglingRootsAffix();
+    default:
+        return nullptr;
     }
 }
 
@@ -123,7 +123,7 @@ void MultipleEnemiesAffix::HandleStaticEffect(Creature* creature)
     if (sMythicPlus->IsCreatureIgnoredForMultiplyAffix(creature->GetEntry()))
         return;
 
-    if (sMythicPlus->IsBoss(creature))
+    if (creature->IsDungeonBoss() || sMythicPlus->IsFinalBoss(creature->GetEntry()))
         return;
 
     if (creature->isDead())
@@ -347,12 +347,12 @@ void EntanglingRootsAffix::HandlePeriodicEffect(Unit* unit, uint32 diff)
                 if (!targets.empty())
                 {
                     auto foundUnitItr = Acore::Containers::SelectRandomContainerElementIf(targets, [&](const Unit* unit) -> bool
-                    {
-                        return unit->IsAlive()
-                            && unit->GetLevel() >= player->GetLevel() // skip level 1 stuff from instances for example
-                            && unit->IsWithinLOSInMap(player)
-                            && unit->IsValidAttackTarget(player);
-                    });
+                        {
+                            return unit->IsAlive()
+                                && unit->GetLevel() >= player->GetLevel() // skip level 1 stuff from instances for example
+                                && unit->IsWithinLOSInMap(player)
+                                && unit->IsValidAttackTarget(player);
+                        });
                     if (foundUnitItr != targets.end())
                         (*foundUnitItr)->CastSpell(player, ENTANGLING_ROOTS_SPELL_ID, true);
                 }
