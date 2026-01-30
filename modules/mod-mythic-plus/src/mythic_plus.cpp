@@ -12,6 +12,11 @@
 #include "mythic_affix.h"
 #include "mythic_plus.h"
 
+ // Treat level 63+ as boss (your bosses are 63, trash 60-62)
+static constexpr uint8 MYTHIC_TRASH_MIN_LEVEL = 60;
+static constexpr uint8 MYTHIC_TRASH_MAX_LEVEL = 62;
+static constexpr uint8 MYTHIC_BOSS_LEVEL = 63;
+
 MythicPlus::MythicPlus()
 {
     enabled = true;
@@ -1061,16 +1066,17 @@ void MythicPlus::ScaleCreature(Creature* creature)
 
     bool boss = IsBoss(creature);
     Map* map = creature->GetMap();
-    const MapScale* mapScale = GetMapScale(map);   
+    const MapScale* mapScale = GetMapScale(map);
     if (mapScale != nullptr)
         creatureData->extraDamageMultiplier = boss ? mapScale->bossDmgScale : mapScale->trashDmgScale;
 
     // only scale creatures from lower level dungeons
-    if (creature->GetLevel() >= DEFAULT_MAX_LEVEL)
+    // (if it's already 60+, leave it alone)
+    if (creature->GetLevel() >= MYTHIC_TRASH_MIN_LEVEL)
         return;
 
-    // assume level 82 for bosses and level [80, 81] for trash mobs
-    uint8 chosenLevel = boss ? 82 : urand(80, 81);
+    // scale: bosses = 63, trash = 60-62
+    uint8 chosenLevel = boss ? MYTHIC_BOSS_LEVEL : urand(MYTHIC_TRASH_MIN_LEVEL, MYTHIC_TRASH_MAX_LEVEL);
 
     CreatureTemplate const* cInfo = sObjectMgr->GetCreatureTemplate(creature->GetEntry());
     ASSERT(cInfo);
@@ -1080,7 +1086,7 @@ void MythicPlus::ScaleCreature(Creature* creature)
 
     creature->SetLevel(chosenLevel);
 
-    uint8 exp = EXPANSION_WRATH_OF_THE_LICH_KING; // all mobs should scale to WOTLK expansion
+    uint8 exp = EXPANSION_CLASSIC; // all mobs should scale to WOTLK expansion
     
     uint32 hpMod = boss ? urand(20, 21) : 4;
     if (map->IsHeroic())
@@ -1129,9 +1135,14 @@ void MythicPlus::ScaleCreature(Creature* creature)
     creature->UpdateAllStats();
 }
 
+
+
 bool MythicPlus::IsBoss(Creature* creature) const
 {
-    return creature->IsDungeonBoss() || IsFinalBoss(creature->GetEntry());
+    if (!creature)
+        return false;
+
+    return creature->GetLevel() >= MYTHIC_BOSS_LEVEL; // use == 63 if you want it strict
 }
 
 const MythicPlus::MapScale* MythicPlus::GetMapScale(const Map* map) const
