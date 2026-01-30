@@ -64,12 +64,12 @@ public:
                 if (mythicLevel == nullptr)
                     return;
 
-                if (player->GetLevel() < DEFAULT_MAX_LEVEL)
-                {
-                    MythicPlus::BroadcastToPlayer(player, "You must be max level in order to join Mythic Plus");
-                    MythicPlus::FallbackTeleport(player);
-                    return;
-                }
+               // if (player->GetLevel() < DEFAULT_MAX_LEVEL)
+            //    {
+                   // MythicPlus::BroadcastToPlayer(player, "You must be max level in order to join Mythic Plus");
+                    //MythicPlus::FallbackTeleport(player);
+                    //return;
+                 //}
 
                 MythicPlus::MapData* mapData = sMythicPlus->GetMapData(map);
                 mapData->mythicPlusStartTimer = savedDungeon->startTime;
