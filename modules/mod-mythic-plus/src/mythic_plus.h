@@ -189,6 +189,7 @@ public:
     };
 public:
     static MythicPlus* instance();
+    bool IsBoss(Creature* creature) const;
 
     static constexpr uint32 NPC_LIGHTNING_SPHERE = 200006;
 
@@ -312,7 +313,7 @@ private:
     void LoadMythicRewardsFromDB();
     void LoadMythicLevelsFromDB();
     void RewardKeystone(Player* player) const;
-    bool IsBoss(Creature* creature) const;
+    
 };
 
 #define sMythicPlus MythicPlus::instance()
