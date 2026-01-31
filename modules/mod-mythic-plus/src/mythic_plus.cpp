@@ -313,7 +313,7 @@ void MythicPlus::LoadMythicPlusCapableDungeonsFromDB()
     } while (result->NextRow());
 
     // 2) Load required boss list per map+difficulty
-    QueryResult bossResult = WorldDatabase.Query("SELECT map, mapdifficulty, entry FROM mythic_plus_capable_dungeon_boss");
+    QueryResult bossResult = WorldDatabase.Query("SELECT map, mapdifficulty, boss_entry FROM mythic_plus_capable_dungeon_boss");
     if (!bossResult)
         return;
 
@@ -323,7 +323,7 @@ void MythicPlus::LoadMythicPlusCapableDungeonsFromDB()
 
         uint32 mapId = fields[0].Get<uint32>();
         uint16 diff = fields[1].Get<uint16>();
-        uint32 bossEntry = fields[2].Get<uint32>();
+        uint32 bossEntry = fields[2].Get<uint32>(); // <- was "entry"
 
         if (diff != DUNGEON_DIFFICULTY_NORMAL && diff != DUNGEON_DIFFICULTY_HEROIC)
         {
