@@ -285,9 +285,8 @@ void MythicPlus::LoadMythicPlusCapableDungeonsFromDB()
 {
     mythicPlusDungeons.clear();
 
-    // NEW schema expectation:
-    // mythic_plus_capable_dungeon(map, mapdifficulty, boss_entry)
-    QueryResult result = WorldDatabase.Query("SELECT map, mapdifficulty, boss_entry FROM mythic_plus_capable_dungeon");
+    // 1) Load allowed dungeons (map + minimum difficulty)
+    QueryResult result = WorldDatabase.Query("SELECT map, mapdifficulty FROM mythic_plus_capable_dungeon");
     if (!result)
         return;
 
@@ -297,49 +296,77 @@ void MythicPlus::LoadMythicPlusCapableDungeonsFromDB()
 
         uint32 mapId = fields[0].Get<uint32>();
         uint16 diff = fields[1].Get<uint16>();
-        uint32 bossEntry = fields[2].Get<uint32>();
 
         if (diff != DUNGEON_DIFFICULTY_NORMAL && diff != DUNGEON_DIFFICULTY_HEROIC)
         {
-            LOG_ERROR("sql.sql", "Table `mythic_plus_capable_dungeon` has invalid mapdifficulty '{}', ignoring row", diff);
-            continue;
-        }
-
-        if (bossEntry == 0)
-        {
-            LOG_ERROR("sql.sql", "Table `mythic_plus_capable_dungeon` has boss_entry = 0 for map {}, diff {}, ignoring row", mapId, diff);
-            continue;
-        }
-
-        // Optional sanity check: only log if template missing
-        if (!sObjectMgr->GetCreatureTemplate(bossEntry))
-        {
-            LOG_ERROR("sql.sql", "Table `mythic_plus_capable_dungeon` has boss_entry {} but creature_template is missing (map {}, diff {})", bossEntry, mapId, diff);
-            // You can continue anyway if you want; I keep it as "continue" for safety
+            LOG_ERROR("sql.sql", "Table `mythic_plus_capable_dungeon` has invalid mapdifficulty '{}', ignoring", diff);
             continue;
         }
 
         MythicPlusCapableDungeon& dungeon = mythicPlusDungeons[mapId];
         dungeon.map = mapId;
+        dungeon.minDifficulty = (Difficulty)diff;
 
-        // minDifficulty should be the lowest difficulty that has any configured bosses
-        if (dungeon.requiredBossEntries.empty())
-            dungeon.minDifficulty = (Difficulty)diff;
-        else
-            dungeon.minDifficulty = (Difficulty)std::min<uint16>((uint16)dungeon.minDifficulty, diff);
-
-        dungeon.requiredBossEntries[diff].insert(bossEntry);
+        // IMPORTANT:
+        // do NOT set finalBossEntry here anymore (column removed / unused)
 
     } while (result->NextRow());
 
-    // Optional: warn if any dungeon has no bosses for its minDifficulty
+    // 2) Load required boss list per map+difficulty
+    QueryResult bossResult = WorldDatabase.Query("SELECT map, mapdifficulty, entry FROM mythic_plus_capable_dungeon_boss");
+    if (!bossResult)
+        return;
+
+    do
+    {
+        Field* fields = bossResult->Fetch();
+
+        uint32 mapId = fields[0].Get<uint32>();
+        uint16 diff = fields[1].Get<uint16>();
+        uint32 bossEntry = fields[2].Get<uint32>();
+
+        if (diff != DUNGEON_DIFFICULTY_NORMAL && diff != DUNGEON_DIFFICULTY_HEROIC)
+        {
+            LOG_ERROR("sql.sql", "Table `mythic_plus_capable_dungeon_boss` has invalid mapdifficulty '{}', ignoring", diff);
+            continue;
+        }
+
+        auto dit = mythicPlusDungeons.find(mapId);
+        if (dit == mythicPlusDungeons.end())
+        {
+            LOG_ERROR("sql.sql", "Boss entry {} references map {} which is not present in `mythic_plus_capable_dungeon`", bossEntry, mapId);
+            continue;
+        }
+
+        // Optional sanity check
+        if (!sObjectMgr->GetCreatureTemplate(bossEntry))
+        {
+            LOG_ERROR("sql.sql", "Table `mythic_plus_capable_dungeon_boss` has entry {} but creature_template is missing (map {}, diff {})", bossEntry, mapId, diff);
+            continue;
+        }
+
+        dit->second.requiredBossEntries[diff].insert(bossEntry);
+
+    } while (bossResult->NextRow());
+
+    // 3) Optional: warn if a dungeon has no bosses configured at all
     for (auto const& [mapId, dungeon] : mythicPlusDungeons)
     {
-        auto it = dungeon.requiredBossEntries.find((uint16)dungeon.minDifficulty);
-        if (it == dungeon.requiredBossEntries.end() || it->second.empty())
-            LOG_ERROR("sql.sql", "MythicPlus dungeon map {} has no required bosses configured for minDifficulty {}", mapId, (uint16)dungeon.minDifficulty);
+        bool hasAnyBoss = false;
+        for (auto const& [diff, setEntries] : dungeon.requiredBossEntries)
+        {
+            if (!setEntries.empty())
+            {
+                hasAnyBoss = true;
+                break;
+            }
+        }
+
+        if (!hasAnyBoss)
+            LOG_ERROR("sql.sql", "MythicPlus dungeon map {} is enabled but has no bosses in `mythic_plus_capable_dungeon_boss`", mapId);
     }
 }
+
 
 void MythicPlus::LoadMythicPlusDungeonsFromDB()
 {
