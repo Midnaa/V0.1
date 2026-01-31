@@ -285,7 +285,9 @@ void MythicPlus::LoadMythicPlusCapableDungeonsFromDB()
 {
     mythicPlusDungeons.clear();
 
-    QueryResult result = WorldDatabase.Query("SELECT map, mapdifficulty, final_boss_entry FROM mythic_plus_capable_dungeon");
+    // NEW schema expectation:
+    // mythic_plus_capable_dungeon(map, mapdifficulty, boss_entry)
+    QueryResult result = WorldDatabase.Query("SELECT map, mapdifficulty, boss_entry FROM mythic_plus_capable_dungeon");
     if (!result)
         return;
 
@@ -295,20 +297,48 @@ void MythicPlus::LoadMythicPlusCapableDungeonsFromDB()
 
         uint32 mapId = fields[0].Get<uint32>();
         uint16 diff = fields[1].Get<uint16>();
+        uint32 bossEntry = fields[2].Get<uint32>();
+
         if (diff != DUNGEON_DIFFICULTY_NORMAL && diff != DUNGEON_DIFFICULTY_HEROIC)
         {
-            LOG_ERROR("sql.sql", "Table `mythic_plus_capable_dungeon` has invalid mapdifficulty '{}', ignoring", diff);
+            LOG_ERROR("sql.sql", "Table `mythic_plus_capable_dungeon` has invalid mapdifficulty '{}', ignoring row", diff);
             continue;
         }
-        uint32 finalBossEntry = fields[2].Get<uint32>();
 
-        MythicPlusCapableDungeon dungeon;
+        if (bossEntry == 0)
+        {
+            LOG_ERROR("sql.sql", "Table `mythic_plus_capable_dungeon` has boss_entry = 0 for map {}, diff {}, ignoring row", mapId, diff);
+            continue;
+        }
+
+        // Optional sanity check: only log if template missing
+        if (!sObjectMgr->GetCreatureTemplate(bossEntry))
+        {
+            LOG_ERROR("sql.sql", "Table `mythic_plus_capable_dungeon` has boss_entry {} but creature_template is missing (map {}, diff {})", bossEntry, mapId, diff);
+            // You can continue anyway if you want; I keep it as "continue" for safety
+            continue;
+        }
+
+        MythicPlusCapableDungeon& dungeon = mythicPlusDungeons[mapId];
         dungeon.map = mapId;
-        dungeon.minDifficulty = (Difficulty)diff;
-        dungeon.finalBossEntry = finalBossEntry;
 
-        mythicPlusDungeons[mapId] = dungeon;
+        // minDifficulty should be the lowest difficulty that has any configured bosses
+        if (dungeon.requiredBossEntries.empty())
+            dungeon.minDifficulty = (Difficulty)diff;
+        else
+            dungeon.minDifficulty = (Difficulty)std::min<uint16>((uint16)dungeon.minDifficulty, diff);
+
+        dungeon.requiredBossEntries[diff].insert(bossEntry);
+
     } while (result->NextRow());
+
+    // Optional: warn if any dungeon has no bosses for its minDifficulty
+    for (auto const& [mapId, dungeon] : mythicPlusDungeons)
+    {
+        auto it = dungeon.requiredBossEntries.find((uint16)dungeon.minDifficulty);
+        if (it == dungeon.requiredBossEntries.end() || it->second.empty())
+            LOG_ERROR("sql.sql", "MythicPlus dungeon map {} has no required bosses configured for minDifficulty {}", mapId, (uint16)dungeon.minDifficulty);
+    }
 }
 
 void MythicPlus::LoadMythicPlusDungeonsFromDB()
@@ -781,13 +811,69 @@ void MythicPlus::LoadSpellOverridesFromDB()
     }
 }
 
-bool MythicPlus::IsFinalBoss(uint32 entry) const
+bool MythicPlus::IsRequiredBossForMap(const Map* map, uint32 entry) const
 {
-    for (const auto& d : mythicPlusDungeons)
-        if (d.second.finalBossEntry == entry)
-            return true;
+    if (!map)
+        return false;
 
-    return false;
+    auto dit = mythicPlusDungeons.find(map->GetId());
+    if (dit == mythicPlusDungeons.end())
+        return false;
+
+    uint16 diff = (uint16)map->GetDifficulty();
+
+    auto bit = dit->second.requiredBossEntries.find(diff);
+    if (bit == dit->second.requiredBossEntries.end())
+        return false;
+
+    return bit->second.find(entry) != bit->second.end();
+}
+
+uint32 MythicPlus::GetRequiredBossCount(const Map* map) const
+{
+    if (!map)
+        return 0;
+
+    auto dit = mythicPlusDungeons.find(map->GetId());
+    if (dit == mythicPlusDungeons.end())
+        return 0;
+
+    uint16 diff = (uint16)map->GetDifficulty();
+
+    auto bit = dit->second.requiredBossEntries.find(diff);
+    if (bit == dit->second.requiredBossEntries.end())
+        return 0;
+
+    return (uint32)bit->second.size();
+}
+
+bool MythicPlus::HaveAllRequiredBossesBeenKilled(const Map* map) const
+{
+    if (!map)
+        return false;
+
+    MapData* mapData = GetMapData(const_cast<Map*>(map), false);
+    if (!mapData)
+        return false;
+
+    auto dit = mythicPlusDungeons.find(map->GetId());
+    if (dit == mythicPlusDungeons.end())
+        return false;
+
+    uint16 diff = (uint16)map->GetDifficulty();
+
+    auto bit = dit->second.requiredBossEntries.find(diff);
+    if (bit == dit->second.requiredBossEntries.end() || bit->second.empty())
+        return false;
+
+    // Require every configured boss entry to be in killedBossEntries
+    for (uint32 bossEntry : bit->second)
+    {
+        if (mapData->killedBossEntries.find(bossEntry) == mapData->killedBossEntries.end())
+            return false;
+    }
+
+    return true;
 }
 
 void MythicReward::AddToken(uint32 entry, uint32 count)
@@ -1131,8 +1217,17 @@ void MythicPlus::ScaleCreature(Creature* creature)
 
 bool MythicPlus::IsBoss(Creature* creature) const
 {
-    return creature->IsDungeonBoss() || IsFinalBoss(creature->GetEntry());
+    if (!creature)
+        return false;
+
+    Map* map = creature->GetMap();
+    if (!map)
+        return false;
+
+    // Only treat as boss if configured as required boss for this map+difficulty
+    return IsRequiredBossForMap(map, creature->GetEntry());
 }
+
 
 const MythicPlus::MapScale* MythicPlus::GetMapScale(const Map* map) const
 {

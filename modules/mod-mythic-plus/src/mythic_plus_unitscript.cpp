@@ -21,122 +21,178 @@ public:
 
     void OnDamage(Unit* attacker, Unit* victim, uint32& /*damage*/) override
     {
-        if (attacker && victim && attacker->GetMap() == victim->GetMap())
+        if (!attacker || !victim)
+            return;
+
+        if (attacker->GetMap() != victim->GetMap())
+            return;
+
+        Creature* creature = victim->ToCreature();
+        if (!creature)
+            return;
+
+        Map* map = creature->GetMap();
+        if (!map || !sMythicPlus->IsMapInMythicPlus(map))
+            return;
+
+        // DB-driven boss recognition (no IsDungeonBoss / no IsFinalBoss)
+        if (!sMythicPlus->IsRequiredBossForMap(map, creature->GetEntry()))
+            return;
+
+        // Only start engagement if a player (or player-controlled unit) initiated it
+        if (!attacker->ToPlayer() && !attacker->IsControlledByPlayer())
+            return;
+
+        MythicPlus::CreatureData* creatureData = sMythicPlus->GetCreatureData(creature);
+        if (!creatureData || creatureData->engageTimer > 0)
+            return;
+
+        creatureData->engageTimer = MythicPlus::Utils::GameTimeCount();
+
+        const Map::PlayerList& playerList = map->GetPlayers();
+        for (Map::PlayerList::const_iterator itr = playerList.begin(); itr != playerList.end(); ++itr)
         {
-            Creature* creature = victim->ToCreature();
-            if (!creature || (!creature->IsDungeonBoss() && !sMythicPlus->IsFinalBoss(creature->GetEntry())))
-                return;
-
-            Map* map = victim->GetMap();
-            if (!sMythicPlus->IsMapInMythicPlus(map))
-                return;
-
-            MythicPlus::CreatureData* creatureData = sMythicPlus->GetCreatureData(creature);
-            if (creatureData->engageTimer > 0)
-                return;
-
-            if (!attacker->ToPlayer() && !attacker->IsControlledByPlayer())
-                return;
-
-            creatureData->engageTimer = MythicPlus::Utils::GameTimeCount();
-
-            const Map::PlayerList& playerList = map->GetPlayers();
-            for (Map::PlayerList::const_iterator itr = playerList.begin(); itr != playerList.end(); ++itr)
+            if (Player* player = itr->GetSource())
             {
-                if (Player* player = itr->GetSource())
-                {
-                    const std::string& cname = MythicPlus::Utils::GetCreatureName(player, creature);
-                    std::ostringstream oss;
-                    oss << "Engaged " << cname << ". Good luck!";
-                    MythicPlus::AnnounceToPlayer(player, oss.str());
-                    MythicPlus::BroadcastToPlayer(player, oss.str());
-                }
+                const std::string& cname = MythicPlus::Utils::GetCreatureName(player, creature);
+                std::ostringstream oss;
+                oss << "Engaged " << cname << ". Good luck!";
+                MythicPlus::AnnounceToPlayer(player, oss.str());
+                MythicPlus::BroadcastToPlayer(player, oss.str());
             }
         }
     }
 
     void OnUnitDeath(Unit* unit, Unit* killer) override
     {
-        if (unit && killer && unit->GetMap() == killer->GetMap())
+        if (!unit)
+            return;
+
+        Creature* creature = unit->ToCreature();
+        if (!creature)
+            return;
+
+        Map* map = creature->GetMap();
+        if (!map || !sMythicPlus->IsMapInMythicPlus(map))
+            return;
+
+        // DB-driven boss recognition (no IsDungeonBoss / no IsFinalBoss)
+        if (!sMythicPlus->IsRequiredBossForMap(map, creature->GetEntry()))
+            return;
+
+        MythicPlus::MapData* mapData = sMythicPlus->GetMapData(map, false);
+        ASSERT(mapData);
+
+        MythicPlus::MythicPlusDungeonInfo* savedDungeon = sMythicPlus->GetSavedDungeonInfo(map->GetInstanceId());
+        if (!savedDungeon)
+            return;
+
+        // ensure creature data exists; do NOT require engageTimer to be set (script kills / no-damage pulls etc.)
+        MythicPlus::CreatureData* creatureData = sMythicPlus->GetCreatureData(creature);
+        if (!creatureData)
+            return;
+
+        uint64 gameTime = GameTime::GetGameTime().count();
+
+        // If we never recorded engagement, at least provide a stable value for diff/snapshot.
+        // Use dungeon start time so it's never "0 -> huge" or blocked.
+        if (creatureData->engageTimer == 0)
+            creatureData->engageTimer = savedDungeon->startTime;
+
+        uint64 diff = gameTime - creatureData->engageTimer;
+        std::string downAfterStr = secsToTimeString(diff);
+
+        // reset engage timer for next spawn
+        creatureData->engageTimer = 0;
+
+        // Mark this boss as killed for this instance (prevents skipping any configured boss)
+        mapData->killedBossEntries.insert(creature->GetEntry());
+
+        // Check completion: ALL configured bosses for this map+difficulty must be killed
+        bool allBossesKilled = sMythicPlus->HaveAllRequiredBossesBeenKilled(map);
+
+        bool rewarded = false;
+
+        // Announce and snapshot per player
+        const Map::PlayerList& playerList = map->GetPlayers();
+        for (Map::PlayerList::const_iterator itr = playerList.begin(); itr != playerList.end(); ++itr)
         {
-            Creature* creature = unit->ToCreature();
-            if (!creature)
-                return;
-
-            MythicPlus::CreatureData* creatureData = sMythicPlus->GetCreatureData(creature, false);
-            if (creatureData == nullptr || creatureData->engageTimer == 0)
-                return;
-
-            Map* map = creature->GetMap();
-
-            uint64 gameTime = GameTime::GetGameTime().count();
-            uint64 diff = gameTime - creatureData->engageTimer;
-            std::string downAfterStr = secsToTimeString(diff);
-
-            MythicPlus::MythicPlusDungeonInfo* savedDungeon = sMythicPlus->GetSavedDungeonInfo(map->GetInstanceId());
-            ASSERT(savedDungeon);
-
-            creatureData->engageTimer = 0;
-
-            const Map::PlayerList& playerList = map->GetPlayers();
-            for (Map::PlayerList::const_iterator itr = playerList.begin(); itr != playerList.end(); ++itr)
+            if (Player* player = itr->GetSource())
             {
-                if (Player* player = itr->GetSource())
+                const std::string& cname = MythicPlus::Utils::GetCreatureName(player, creature);
+
                 {
-                    const std::string& cname = MythicPlus::Utils::GetCreatureName(player, creature);
                     std::ostringstream oss;
-                    oss << cname << " was bested in " << downAfterStr;
-                    oss << ". Congratulations!";
+                    oss << cname << " was bested in " << downAfterStr << ".";
                     MythicPlus::AnnounceToPlayer(player, oss.str());
                     MythicPlus::BroadcastToPlayer(player, oss.str());
+                }
 
-                    bool finalBoss = sMythicPlus->IsFinalBoss(creature->GetEntry());
-                    bool rewarded = false;
-                    MythicPlus::MapData* mapData = sMythicPlus->GetMapData(map, false);
-                    ASSERT(mapData);
+                // Progress feedback: X / N bosses down
+                {
+                    uint32 killed = (uint32)mapData->killedBossEntries.size();
+                    uint32 required = sMythicPlus->GetRequiredBossCount(map);
 
-                    if (finalBoss)
+                    std::ostringstream oss;
+                    oss << "Bosses defeated: " << killed << "/" << required;
+                    MythicPlus::AnnounceToPlayer(player, oss.str());
+                }
+
+                // If this kill completed the run, finish & reward exactly once (guarded by mapData->done)
+                if (allBossesKilled && !mapData->done)
+                {
+                    std::ostringstream oss2;
+                    oss2 << "All required bosses defeated! Mythic Plus dungeon ended after ";
+                    oss2 << secsToTimeString(gameTime - savedDungeon->startTime);
+                    MythicPlus::AnnounceToPlayer(player, oss2.str());
+                    MythicPlus::BroadcastToPlayer(player, oss2.str());
+
+                    if (mapData->receiveLoot)
                     {
-                        std::ostringstream oss2;
-                        oss2 << "Mythic Plus dungeon ended after ";
-                        oss2 << secsToTimeString(gameTime - savedDungeon->startTime);
-                        MythicPlus::AnnounceToPlayer(player, oss2.str());
-                        MythicPlus::BroadcastToPlayer(player, oss2.str());
-
-                        if (mapData->receiveLoot)
-                        {
-                            rewarded = true;
-                            sMythicPlus->Reward(player, mapData->mythicLevel->reward);
-                        }
-                        mapData->done = true;
-
-                        sMythicPlus->SaveDungeonInfo(map->GetInstanceId(), map->GetId(), mapData->timeLimit, mapData->mythicPlusStartTimer, mapData->mythicLevel->level, mapData->penaltyOnDeath, mapData->deaths, true);
+                        rewarded = true;
+                        sMythicPlus->Reward(player, mapData->mythicLevel->reward);
                     }
 
-                    const MythicLevel* mythicLevel = sMythicPlus->GetMythicLevel(savedDungeon->mythicLevel);
-                    ASSERT(mythicLevel);
+                    mapData->done = true;
 
-                    sMythicPlus->AddDungeonSnapshot(map->GetInstanceId(),
+                    sMythicPlus->SaveDungeonInfo(
+                        map->GetInstanceId(),
                         map->GetId(),
-                        map->GetDifficulty(),
-                        savedDungeon->startTime,
-                        gameTime,
-                        diff,
-                        savedDungeon->timeLimit,
-                        player->GetGUID().GetCounter(),
-                        player->GetName(),
-                        savedDungeon->mythicLevel,
-                        creature->GetEntry(),
-                        finalBoss,
-                        rewarded,
+                        mapData->timeLimit,
+                        mapData->mythicPlusStartTimer,
+                        mapData->mythicLevel->level,
                         mapData->penaltyOnDeath,
                         mapData->deaths,
-                        mythicLevel->randomAffixCount
+                        true
                     );
                 }
+
+                const MythicLevel* mythicLevel = sMythicPlus->GetMythicLevel(savedDungeon->mythicLevel);
+                ASSERT(mythicLevel);
+
+                // "finalBoss" in snapshot now means "run completed on this kill"
+                sMythicPlus->AddDungeonSnapshot(
+                    map->GetInstanceId(),
+                    map->GetId(),
+                    map->GetDifficulty(),
+                    savedDungeon->startTime,
+                    gameTime,
+                    (uint32)diff,
+                    savedDungeon->timeLimit,
+                    player->GetGUID().GetCounter(),
+                    player->GetName(),
+                    savedDungeon->mythicLevel,
+                    creature->GetEntry(),
+                    allBossesKilled,
+                    rewarded,
+                    mapData->penaltyOnDeath,
+                    mapData->deaths,
+                    mythicLevel->randomAffixCount
+                );
             }
         }
     }
+
 
     void OnUnitEnterEvadeMode(Unit* unit, uint8 /*evadeReason*/) override
     {

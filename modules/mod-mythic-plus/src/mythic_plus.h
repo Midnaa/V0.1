@@ -6,6 +6,13 @@
 #define _MYTHIC_PLUS_H_
 
 #include <random>
+#include <unordered_map>
+#include <unordered_set>
+#include <set>
+#include <vector>
+#include <string>
+#include <utility>
+
 #include "Player.h"
 
 class MythicAffix;
@@ -33,6 +40,7 @@ class MythicPlus
 private:
     MythicPlus();
     ~MythicPlus();
+
 public:
     static constexpr uint32 MYTHIC_SNAPSHOTS_TIMER_FREQ = 60 * 10 * 1000;
     static constexpr uint32 KEYSTONE_START_TIMER = 10 * 1000;
@@ -54,9 +62,22 @@ public:
         uint32 penaltyOnDeath = 0;
         uint32 deaths = 0;
 
+        // NEW: Required-boss completion tracking (per instance)
+        std::unordered_set<uint32> killedBossEntries;
+
         uint32 GetPenaltyTime() const
         {
             return penaltyOnDeath * deaths;
+        }
+
+        void ResetBossProgress()
+        {
+            killedBossEntries.clear();
+        }
+
+        bool MarkBossKilled(uint32 entry)
+        {
+            return killedBossEntries.insert(entry).second; // true if first time
         }
     };
 
@@ -105,7 +126,7 @@ public:
         std::string players;
         uint32 mythicLevel;
         uint32 entry;
-        bool finalBoss;
+        bool finalBoss;      // keep this field; you can set it to "last required boss killed"
         bool rewarded;
         uint32 totalTime;
         uint32 internalId;
@@ -121,6 +142,7 @@ public:
     {
     private:
         static constexpr int VISUAL_FEEDBACK_SPELL_ID = 46331;
+
     public:
         static std::string GetCreatureName(const Player* player, const Creature* creature);
         static std::string GetCreatureNameByEntry(const Player* player, uint32 entry);
@@ -159,10 +181,11 @@ public:
             REWARD_TOKEN,
             MAX_REWARD_TYPE
         };
+
         uint32 level;
-        RewardType type;    // 0 - copper (money), 1 - token (item)
-        uint32 val1;        // for type = 0 - amount of copper, for type = 1 - the item entry
-        uint32 val2;        // for type = 0 - nothing, for type = 1 - item count
+        RewardType type; // 0 - copper (money), 1 - token (item)
+        uint32 val1;     // for type = 0 - amount of copper, for type = 1 - the item entry
+        uint32 val2;     // for type = 0 - nothing, for type = 1 - item count
     };
 
     struct MapScale
@@ -173,20 +196,24 @@ public:
         float bossDmgScale;
     };
 
+    // UPDATED: store ALL required bosses (per mapdifficulty) instead of a single final boss
     struct MythicPlusCapableDungeon
     {
-        uint32 map;
-        Difficulty minDifficulty;
-        uint32 finalBossEntry;
+        uint32 map = 0;
+        Difficulty minDifficulty = DUNGEON_DIFFICULTY_NORMAL;
+
+        // mapdifficulty -> set of required boss creature_template entries
+        std::unordered_map<uint16, std::unordered_set<uint32>> requiredBossEntries;
     };
 
     struct SpellOverride
     {
         uint32 map;
         uint32 spellId;
-        float modPct;       // affects initial spell damage
-        float dotModPct;    // affects only dot damage for the specific spell
+        float modPct;    // affects initial spell damage
+        float dotModPct; // affects only dot damage for the specific spell
     };
+
 public:
     static MythicPlus* instance();
 
@@ -206,81 +233,84 @@ public:
     bool CanMapBeMythicPlus(const Map* map) const;
     bool CanProcessCreature(const Creature* creature) const;
     void StoreOriginalCreatureData(Creature* creature) const;
+
     const MythicLevel* GetMythicLevel(uint32 level) const;
     void ProcessStaticAffixes(const MythicLevel* mythicLevel, Creature* creature) const;
     void PrintMythicLevelInfo(const MythicLevel* mythicLevel, const Player* player) const;
+
     bool IsInMythicPlus(const Unit* unit) const;
     bool IsMapInMythicPlus(Map* map) const;
+
     void LoadFromDB();
+
     MythicPlusDungeonInfo* GetSavedDungeonInfo(uint32 instanceId);
-    void SaveDungeonInfo(uint32 instanceId, uint32 mapId, uint32 timeLimit, uint64 startTime, uint32 mythicLevel, uint32 penaltyOnDeath, uint32 deaths, bool done, bool isMythic = true);
+    void SaveDungeonInfo(uint32 instanceId, uint32 mapId, uint32 timeLimit, uint64 startTime, uint32 mythicLevel,
+        uint32 penaltyOnDeath, uint32 deaths, bool done, bool isMythic = true);
+
     void AddDungeonSnapshot(uint32 instanceId, uint32 mapId, Difficulty mapDiff, uint64 startTime,
         uint64 snapTime, uint32 combatTime, uint32 timelimit, uint32 charGuid, std::string charName,
-        uint32 mythicLevel, uint32 creatureEntry, bool isFinalBoss, bool rewarded, uint32 penaltyOnDeath, uint32 deaths,
-        uint32 randomAffixCount);
-    bool IsFinalBoss(uint32 entry) const;
+        uint32 mythicLevel, uint32 creatureEntry, bool isFinalBoss, bool rewarded,
+        uint32 penaltyOnDeath, uint32 deaths, uint32 randomAffixCount);
+
+    // NEW: boss list driven API (no IsDungeonBoss / no CREATURE_FLAG_EXTRA_DUNGEON_BOSS)
+    bool IsRequiredBossForMap(const Map* map, uint32 entry) const;
+    uint32 GetRequiredBossCount(const Map* map) const;
+    bool HaveAllRequiredBossesBeenKilled(const Map* map) const;
+
     void Reward(Player* player, const MythicReward& reward) const;
     void RemoveDungeonInfo(uint32 instanceId);
-    const MythicLevelContainer& GetAllMythicLevels() const
-    {
-        return mythicLevels;
-    }
+
+    const MythicLevelContainer& GetAllMythicLevels() const { return mythicLevels; }
+
     uint32 GetCurrentMythicPlusLevel(const Player* player) const;
     uint32 GetCurrentMythicPlusLevelForGUID(uint32 guid) const;
     bool SetCurrentMythicPlusLevel(const Player* player, uint32 mythiclevel, bool force = false);
     uint32 GetCurrentMythicPlusLevelForDungeon(const Player* player) const;
-    const std::unordered_map<uint32, MythicPlusCapableDungeon>& GetAllMythicPlusDungeons() const
-    {
-        return mythicPlusDungeons;
-    }
+
+    const std::unordered_map<uint32, MythicPlusCapableDungeon>& GetAllMythicPlusDungeons() const { return mythicPlusDungeons; }
+
     void ProcessQueryCallbacks();
     void LoadMythicPlusSnapshotsFromDB();
-    uint32 GetMythicSnapshotsTimer() const
-    {
-        return mythicSnapshotsTimer;
-    }
-    void UpdateMythicSnapshotsTimer(uint32 diff)
-    {
-        mythicSnapshotsTimer += diff;
-    }
-    void ResetMythicSnapshotsTimer()
-    {
-        mythicSnapshotsTimer = 0;
-    }
+
+    uint32 GetMythicSnapshotsTimer() const { return mythicSnapshotsTimer; }
+    void UpdateMythicSnapshotsTimer(uint32 diff) { mythicSnapshotsTimer += diff; }
+    void ResetMythicSnapshotsTimer() { mythicSnapshotsTimer = 0; }
+
     const std::vector<std::pair<std::pair<uint32, uint64>, std::vector<MythicPlusDungeonSnapshot>>> GetMapSnapshot(uint32 mapId, uint32 mythicLevel) const;
+
     void ProcessConfig(bool reload);
-    bool IsEnabled() const
-    {
-        return enabled;
-    }
+
+    bool IsEnabled() const { return enabled; }
     bool MatchMythicPlusMapDiff(const Map* map) const;
+
     bool IsCreatureIgnoredForMultiplyAffix(uint32 entry) const;
-    uint32 GetPenaltyOnDeath() const
-    {
-        return penaltyOnDeath;
-    }
+
+    uint32 GetPenaltyOnDeath() const { return penaltyOnDeath; }
+
     bool GiveKeystone(Player* player);
     void RemoveKeystone(Player* player) const;
-    uint32 GetKeystoneBuyTimer() const
-    {
-        return keystoneBuyTimer;
-    }
+
+    uint32 GetKeystoneBuyTimer() const { return keystoneBuyTimer; }
     uint64 GetKeystoneBuyTimer(const Player* player) const;
-    bool GetDropKeystoneOnCompletion() const
-    {
-        return dropKeystoneOnCompletion;
-    }
+
+    bool GetDropKeystoneOnCompletion() const { return dropKeystoneOnCompletion; }
+
     void ScaleCreature(Creature* creature);
+
     const MapScale* GetMapScale(const Map* map) const;
     bool CheckGroupLevelForKeystone(const Player* player) const;
+
     const SpellOverride* GetSpellOverride(const Map* map, uint32 spellid) const;
+
     void LoadIgnoredEntriesForMultiplyAffixFromDB();
     void LoadScaleMapFromDB();
     void LoadSpellOverridesFromDB();
+
 private:
     std::unordered_map<uint32, MythicPlusCapableDungeon> mythicPlusDungeons;
     std::unordered_map<uint32, MythicPlusDungeonInfo> mythicPlusDungeonInfo;
     std::unordered_map<uint32, uint32> charMythicLevels;
+
     bool enabled;
     std::set<uint32> ignoredEntriesForMultiplyAffix;
     uint32 penaltyOnDeath;
@@ -302,16 +332,22 @@ private:
 
     bool IsAllowedMythicPlusDungeon(uint32 mapId) const;
     ObjectGuid GetLeaderGuid(const Player* player) const;
+
     void LoadMythicPlusDungeonsFromDB();
     void LoadMythicPlusCharLevelsFromDB();
     void LoadMythicPlusKeystoneTimersFromDB();
+
     void MythicPlusSnapshotsDBCallback(QueryResult result);
     void SortSnapshots(std::vector<std::pair<std::pair<uint32, uint64>, std::vector<MythicPlusDungeonSnapshot>>>& snapshots);
+
     void LoadMythicPlusCapableDungeonsFromDB();
     void LoadMythicAffixFromDB();
     void LoadMythicRewardsFromDB();
     void LoadMythicLevelsFromDB();
+
     void RewardKeystone(Player* player) const;
+
+    // UPDATED: boss determination is now purely DB-driven
     bool IsBoss(Creature* creature) const;
 };
 

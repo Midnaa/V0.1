@@ -123,7 +123,12 @@ void MultipleEnemiesAffix::HandleStaticEffect(Creature* creature)
     if (sMythicPlus->IsCreatureIgnoredForMultiplyAffix(creature->GetEntry()))
         return;
 
-    if (creature->IsDungeonBoss() || sMythicPlus->IsFinalBoss(creature->GetEntry()))
+    Map* map = creature->GetMap();
+    if (!map || !sMythicPlus->IsMapInMythicPlus(map))
+        return;
+
+    // Skip ALL bosses that are defined for this map (not just "final boss")
+    if (sMythicPlus->IsRequiredBossForMap(map, creature->GetEntry()))
         return;
 
     if (creature->isDead())
